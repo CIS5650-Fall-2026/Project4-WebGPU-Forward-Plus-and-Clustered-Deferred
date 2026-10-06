@@ -1,7 +1,7 @@
 WebGPU Forward+ and Clustered Deferred Shading - Instructions
 ==========================================================
 
-**This is due Friday, October 17th at 11:59 PM.**
+**This is due Friday, October 16th at 11:59 PM.**
 
 In this project, you will implement the Forward+ and Clustered Deferred shading methods as discussed in class. You are given a scene with the Sponza atrium model and a large number of point lights, as well as a GUI to toggle between the different rendering modes.
 
@@ -103,7 +103,7 @@ When adding new buffers, especially if they contain new structs, their alignment
   - Read from the G-buffer in a separate fullscreen pass to produce final output
   - Look for comments containing `TODO-3` for details
 
-### Part 2: Extra Credit: Effects and Optimizations
+### Part 2: Extra Credit: Effects and Optimizations (maximum 25 points)
 
 For full credit, you must show a good optimization effort and record the performance of each version you test.
 
@@ -152,6 +152,22 @@ For more reference, please refer to the following materials:
 #### Extra Credit: Render Bundles (5 points)
 
 Use [render bundles](https://toji.dev/webgpu-best-practices/render-bundles.html) to reduce the overhead of host-side draw calls. Make sure you provide a performance analysis showing the effect of this change.
+
+#### Extra Credit: Depth Prepass for Forward+ (15)
+
+Add a depth-only prepass to the Forward+ renderer and reuse its results to accelerate both light clustering and final shading. This eliminates shading overdraw in the final lighting pass (each visible pixel is lit exactly once) and lets you narrow the set of clusters that need to be considered.
+
+Implement the prepass itself, plus one or both of the optimizations below:
+
+1. **Overdraw-free shading (+5)**
+    - Render the geometry to depth only, then reuse that depth buffer in the final lighting pass so that only visible fragments are shaded.
+    - Think carefully about the depth comparison and write settings each pass needs.
+
+2. **Depth-based cluster culling (+10)**
+    - In a separate fullscreen-quad pass (after the depth prepass but before light clustering), use the depth buffer to identify and mark which clusters contain geometry and are not occluded.
+    - In the light clustering step, only consider those identified clusters (you can either simply skip inactive clusters, or -- potentially even better -- run a stream compaction step first, and then dispatch fewer threads for the light clustering shader. Make sure to indicate your approach in the performance analysis).
+
+Your performance analysis should include the results of these optimizations in its discussion. Possible considerations: how the optimization scales with scene depth complexity (overdraw, empty clusters), how it scales with the number of lights, whether stream compaction is worth it, etc.
 
 ## Performance Analysis (10 points)
 
