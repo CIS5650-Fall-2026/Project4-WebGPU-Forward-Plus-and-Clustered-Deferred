@@ -29,6 +29,14 @@ export class Lights {
     moveLightsComputePipeline: GPUComputePipeline;
 
     // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
+    clusterSetStorageBuffer: GPUBuffer;
+    clusteringComputeBindGroupLayout: GPUBindGroupLayout;
+    clusteringComputeBindGroup: GPUBindGroup;
+    clusteringComputePipeline: GPUComputePipeline;
+
+    activeClustersBuffer: GPUBuffer;         
+    allActiveClustersBuffer: GPUBuffer;       
+    clusteringComputeBindGroupCulled: GPUBindGroup;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -94,6 +102,78 @@ export class Lights {
         });
 
         // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
+        const numClusters = shaders.constants.clusterCountX
+                  * shaders.constants.clusterCountY
+                  * shaders.constants.clusterCountZ;
+        const bytesPerCluster = (1 + shaders.constants.maxLightsPerCluster) * 4;
+
+        this.clusterSetStorageBuffer = device.createBuffer({
+            label: "cluster set",
+            size: numClusters * bytesPerCluster,
+            usage: GPUBufferUsage.STORAGE
+        });
+
+        this.activeClustersBuffer = device.createBuffer({
+            label: "active clusters",
+            size: numClusters * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+        });
+        this.allActiveClustersBuffer = device.createBuffer({
+            label: "all clusters active",
+            size: numClusters * 4,
+            usage: GPUBufferUsage.STORAGE,
+            mappedAtCreation: true
+        });
+        new Uint32Array(this.allActiveClustersBuffer.getMappedRange()).fill(1);
+        this.allActiveClustersBuffer.unmap();
+
+        this.clusteringComputeBindGroupLayout = device.createBindGroupLayout({
+            label: "clustering compute bind group layout",
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+                { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } } 
+            ]
+        });
+
+        this.clusteringComputeBindGroup = device.createBindGroup({
+            label: "clustering compute bind group",
+            layout: this.clusteringComputeBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
+                { binding: 1, resource: { buffer: this.lightSetStorageBuffer } },
+                { binding: 2, resource: { buffer: this.clusterSetStorageBuffer } },
+                { binding: 3, resource: { buffer: this.allActiveClustersBuffer } }
+            ]
+        });
+
+        this.clusteringComputeBindGroupCulled = device.createBindGroup({
+            label: "clustering compute bind group (culled)",
+            layout: this.clusteringComputeBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
+                { binding: 1, resource: { buffer: this.lightSetStorageBuffer } },
+                { binding: 2, resource: { buffer: this.clusterSetStorageBuffer } },
+                { binding: 3, resource: { buffer: this.activeClustersBuffer } }
+            ]
+        });
+
+        this.clusteringComputePipeline = device.createComputePipeline({
+            label: "clustering compute pipeline",
+            layout: device.createPipelineLayout({
+                label: "clustering compute pipeline layout",
+                bindGroupLayouts: [ this.clusteringComputeBindGroupLayout ]
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    label: "clustering compute shader",
+                    code: shaders.clusteringComputeSrc
+                }),
+                entryPoint: "main"
+            }
+        });
+    
     }
 
     private populateLightsBuffer() {
@@ -110,9 +190,34 @@ export class Lights {
         device.queue.writeBuffer(this.lightSetStorageBuffer, 0, new Uint32Array([this.numLights]));
     }
 
-    doLightClustering(encoder: GPUCommandEncoder) {
+    doLightClustering(encoder: GPUCommandEncoder, useCulling: boolean = false) {
         // TODO-2: run the light clustering compute pass(es) here
         // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
+        const computePass = encoder.beginComputePass({ label: "clustering compute pass" });
+        computePass.setPipeline(this.clusteringComputePipeline);
+        computePass.setBindGroup(shaders.constants.bindGroup_scene,
+            useCulling ? this.clusteringComputeBindGroupCulled : this.clusteringComputeBindGroup);  
+        const numClusters = shaders.constants.clusterCountX
+                        * shaders.constants.clusterCountY
+                        * shaders.constants.clusterCountZ;
+        computePass.dispatchWorkgroups(Math.ceil(numClusters / shaders.constants.clusteringWorkgroupSize));
+
+        computePass.end();
+    }
+
+    async countActiveClusters(): Promise<number> {
+        const size = this.activeClustersBuffer.size;
+        const readBuffer = device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        const encoder = device.createCommandEncoder();
+        encoder.copyBufferToBuffer(this.activeClustersBuffer, 0, readBuffer, 0, size);
+        device.queue.submit([encoder.finish()]);
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const flags = new Uint32Array(readBuffer.getMappedRange());
+        let count = 0;
+        for (const f of flags) count += f;
+        readBuffer.unmap();
+        readBuffer.destroy();
+        return count;
     }
 
     // CHECKITOUT: this is where the light movement compute shader is dispatched from the host
