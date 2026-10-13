@@ -11,21 +11,29 @@ import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
 
+import { benchmarkCollector, BenchmarkMode } from './benchmark';
+
 await initWebGPU();
 setupLoaders();
 
 let scene = new Scene();
-await scene.loadGltf('./scenes/sponza/Sponza.gltf');
+await scene.loadGltf(`${import.meta.env.BASE_URL}scenes/sponza/Sponza.gltf`);
 
 const camera = new Camera();
 const lights = new Lights(camera);
 
+benchmarkCollector.onStop = () => {
+    camera.benchmarkLocked = false;
+    camera.keys = {};
+}
+
 const stats = new Stats();
-stats.showPanel(0);
+stats.showPanel(1);
 document.body.appendChild(stats.dom);
 
 const gui = new GUI();
 gui.add(lights, 'numLights').min(1).max(Lights.maxNumLights).step(1).onChange(() => {
+    benchmarkCollector.cancel();
     lights.updateLightSetUniformNumLights();
 });
 
@@ -34,6 +42,7 @@ const stage = new Stage(scene, lights, camera, stats);
 var renderer: Renderer | undefined;
 
 function setRenderer(mode: string) {
+    benchmarkCollector.cancel();
     renderer?.stop();
 
     switch (mode) {
@@ -54,3 +63,27 @@ let renderModeController = gui.add({ mode: renderModes.naive }, 'mode', renderMo
 renderModeController.onChange(setRenderer);
 
 setRenderer(renderModeController.getValue());
+
+
+const benchmarkControls = {
+    startBenchmark: () => {
+        if (benchmarkCollector.isActive()) {
+            console.warn('A benchmark is already running..');
+            return;
+            
+        }
+
+
+
+        const mode = renderModeController.getValue() as BenchmarkMode;
+
+        const numLights = lights.numLights;
+
+        camera.benchmarkLocked = true;
+        camera.keys = {};
+
+        benchmarkCollector.start(mode, numLights);
+    }
+};
+
+gui.add(benchmarkControls, 'startBenchmark').name('Start GPU Benchmark');

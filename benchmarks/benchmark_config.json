@@ -1,0 +1,21 @@
+
+{
+  "scene": "Sponza",
+  "canvasWidth": 2560,
+  "canvasHeight": 1347,
+  "devicePixelRatio": 1.5,
+  "timingUnit": "milliseconds",
+  "timingMethod": "WebGPU timestamp queries",
+  "warmupSamples": 30,
+  "recordedSamples": 100,
+  "lightCounts": [50, 100, 250, 500, 1000],
+  "renderers": [
+    "naive",
+    "forward+",
+    "clustered deferred"
+  ],
+  "cameraPosition": [-7, 2, 0],
+  "cameraYawDegrees": 0,
+  "cameraPitchDegrees": 0,
+  "movingLights": true
+}
