@@ -28,13 +28,18 @@ const gui = new GUI();
 gui.add(lights, 'numLights').min(1).max(Lights.maxNumLights).step(1).onChange(() => {
     lights.updateLightSetUniformNumLights();
 });
+gui.add(lights, 'showClusters').name('cluster counts');
 
 const stage = new Stage(scene, lights, camera, stats);
 
 var renderer: Renderer | undefined;
+const options = { bundles: true };
+gui.add(options, 'bundles').name('render bundles').onChange((value: boolean) => {
+    if (renderer) renderer.useBundles = value;
+});
 
 function setRenderer(mode: string) {
-    renderer?.stop();
+    renderer?.destroy();
 
     switch (mode) {
         case renderModes.naive:
@@ -47,6 +52,7 @@ function setRenderer(mode: string) {
             renderer = new ClusteredDeferredRenderer(stage);
             break;
     }
+    if (renderer) renderer.useBundles = options.bundles;
 }
 
 const renderModes = { naive: 'naive', forwardPlus: 'forward+', clusteredDeferred: 'clustered deferred' };
