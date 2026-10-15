@@ -27,16 +27,44 @@ export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    
+    bindGroup_lighting: 1,
 
     moveLightsWorkgroupSize: 128,
+    computeClusterWorkgroupSize: 4,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    maxLightsPerCluster: 100,
+    clusterCountsX: 32,
+    clusterCountsY: 18,
+    clusterCountsZ: 24,
+
+    //cases where logarithmic is better: lights concentrated near the camera, evenly spaced / far plane much farther than the relevant scene 
+    //whichever the case, logarithmic seems to work better, likely due to the fact that the far clip plane is farther than where the lights are
+    useLogarithmicSlices: true
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+//we read the shader code as text, the substitution happens with these functions
+//${...} evaluates the expression in side and inserts its value into the string
+// function evalShaderRaw(raw: string) {
+//     return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+// }
+function evalShaderRaw(raw: string): string {
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);

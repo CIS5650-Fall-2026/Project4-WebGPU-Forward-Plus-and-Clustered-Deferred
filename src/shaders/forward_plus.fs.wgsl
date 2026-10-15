@@ -1,3 +1,17 @@
+@group(${bindGroup_scene}) @binding(0) var<uniform> cameraUniform: CameraUniforms;
+@group(${bindGroup_scene}) @binding(1) var<storage, read> lightSet: LightSet;
+@group(${bindGroup_scene}) @binding(2) var<storage, read> clusterSet: ClusterSet;
+
+@group(${bindGroup_material}) @binding(0) var diffuseTex: texture_2d<f32>;
+@group(${bindGroup_material}) @binding(1) var diffuseTexSampler: sampler;
+
+struct FragmentInput
+{
+    @location(0) pos: vec3f,
+    @location(1) nor: vec3f,
+    @location(2) uv: vec2f
+}
+
 // TODO-2: implement the Forward+ fragment shader
 
 // See naive.fs.wgsl for basic fragment shader setup; this shader should use light clusters instead of looping over all lights
@@ -14,3 +28,43 @@
 //     Add the calculated contribution to the total light accumulation.
 // Multiply the fragment’s diffuse color by the accumulated light contribution.
 // Return the final color, ensuring that the alpha component is set appropriately (typically to 1).
+
+@fragment
+fn main(in: FragmentInput, @builtin(position) screenPos: vec4f) -> @location(0) vec4f {
+    let diffuseColor = textureSample(diffuseTex, diffuseTexSampler, in.uv);
+    if (diffuseColor.a < 0.5f) { //almost transparent materials, like gaps between leaves
+        discard;
+    }
+
+    let offsetX = cameraUniform.screenX / ${clusterCountsX};
+    let offsetY = cameraUniform.screenY / ${clusterCountsY};
+    let offsetZ = (cameraUniform.farPlane - cameraUniform.nearPlane) / ${clusterCountsZ};
+
+    let viewPos = cameraUniform.viewMat * vec4f(in.pos,1);
+
+    let clusterX = clamp(u32(screenPos.x / offsetX),0, ${clusterCountsX} -1);
+    let clusterY = clamp(u32(screenPos.y / offsetY),0, ${clusterCountsY} -1);
+    
+    var clusterZ : u32 = 0;
+    if(${useLogarithmicSlices}){ //floor(N*log(-viewPos.z/n) / log(f/n)) , camera is looking into negative Z, while near/far planes represent positive depth
+        clusterZ = clamp(u32(${clusterCountsZ} * log(-viewPos.z/cameraUniform.nearPlane) / log(cameraUniform.farPlane / cameraUniform.nearPlane)),0,${clusterCountsZ} -1);
+    }
+    else{
+        clusterZ = clamp(u32((-viewPos.z -cameraUniform.nearPlane) / offsetZ),0,${clusterCountsZ} -1);
+    }
+
+    let clusterId = clusterZ * ${clusterCountsY} * ${clusterCountsX} + clusterY * ${clusterCountsX} + clusterX;
+
+    let cluster = clusterSet.clusters[clusterId];
+
+    let norNormalized = normalize(in.nor);
+    var totalLightContrib = vec3f(0, 0, 0);
+    for(var i: u32 = 0; i < cluster.numLightsInCluster; i++){
+        let light = lightSet.lights[cluster.lightIndicesInCluster[i]];
+
+        totalLightContrib += calculateLightContrib(light, in.pos, norNormalized);
+    }
+
+    let finalColor = diffuseColor.rgb * totalLightContrib;
+    return vec4(finalColor, 1);
+}

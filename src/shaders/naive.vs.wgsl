@@ -1,7 +1,12 @@
 // CHECKITOUT: you can use this vertex shader for all of the renderers
-
+ 
 // TODO-1.3: add a uniform variable here for camera uniforms (of type CameraUniforms)
 // make sure to use ${bindGroup_scene} for the group
+// in bindGroup_scene, and binding index 0, you will find a type uniform, interpret it as CameraUniforms
+// viewProjMat is the GPU side variable
+// different than GLSL because we directly send data to the exact variables (setUniform1f)
+// WebGL specficies the layout and binding location on the CPU side, and we have to specify where to fetch the info on the GPU
+@group(${bindGroup_scene}) @binding(0) var<uniform> camUniforms: CameraUniforms;
 
 @group(${bindGroup_model}) @binding(0) var<uniform> modelMat: mat4x4f;
 
@@ -26,9 +31,9 @@ fn main(in: VertexInput) -> VertexOutput
     let modelPos = modelMat * vec4(in.pos, 1);
 
     var out: VertexOutput;
-    out.fragPos = ??? * modelPos; // TODO-1.3: replace ??? with the view proj mat from your CameraUniforms uniform variable
+    out.fragPos = camUniforms.viewProjMat * modelPos; // TODO-1.3: replace ??? with the view proj mat from your CameraUniforms uniform variable
     out.pos = modelPos.xyz / modelPos.w;
-    out.nor = in.nor;
+    out.nor = in.nor; //sponza has a uniform scale, no rotation, just 1 big model so no need to apply invtrans
     out.uv = in.uv;
     return out;
 }
