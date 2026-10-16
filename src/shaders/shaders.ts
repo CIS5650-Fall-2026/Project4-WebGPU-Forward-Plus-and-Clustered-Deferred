@@ -27,10 +27,21 @@ export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    bindGroup_gBuffer: 1,
 
     moveLightsWorkgroupSize: 128,
+    clusteringWorkgroupSizeX: 4,
+    clusteringWorkgroupSizeY: 4,
+    clusteringWorkgroupSizeZ: 4,
 
-    lightRadius: 2
+    lightRadius: 2,
+    maxLightsPerCluster: 200,
+
+    gridDimX: 16,
+    gridDimY: 9,
+    gridDimZ: 24,
+    farPlane: Camera.farPlane,
+    nearPlane: Camera.nearPlane
 };
 
 // =================================

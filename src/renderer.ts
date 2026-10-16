@@ -111,6 +111,10 @@ export abstract class Renderer {
     private prevTime: number = 0;
     private frameRequestId: number;
 
+    private frameTimes: number[] = [];
+    private readonly frameWindow = 200;
+    private timingEl: HTMLDivElement = Renderer.getTimingElement();
+
     constructor(stage: Stage) {
         this.scene = stage.scene;
         this.lights = stage.lights;
@@ -138,11 +142,40 @@ export abstract class Renderer {
 
         this.stats.begin();
 
+        const t0 = performance.now();
         this.draw();
+        device.queue.onSubmittedWorkDone().then(() => {
+            if (this.frameTimes.length >= this.frameWindow) {
+                return;
+            }
+
+            this.frameTimes.push(performance.now() - t0);
+            const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+            this.timingEl.textContent = `frame: ${avg.toFixed(2)} ms [n=${this.frameTimes.length}]`;
+        });
 
         this.stats.end();
 
         this.prevTime = time;
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+    }
+
+    private static getTimingElement(): HTMLDivElement {
+        let el = document.getElementById('frame-timing') as HTMLDivElement | null;
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'frame-timing';
+            Object.assign(el.style, {
+                position: 'fixed', top: '50px', left: '0', padding: '4px 8px',
+                background: 'rgba(0,0,0,0.7)', color: '#0f0',
+                font: '12px monospace', zIndex: '10000', pointerEvents: 'none',
+            });
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    resetTiming(): void {
+        this.frameTimes = [];
     }
 }

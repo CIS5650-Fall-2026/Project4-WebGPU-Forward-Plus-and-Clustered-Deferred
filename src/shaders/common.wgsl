@@ -11,9 +11,30 @@ struct LightSet {
 }
 
 // TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct ClusterBounds {
+    minValues: vec3f,
+    maxValues: vec3f
+}
+
+struct Cluster {
+    numLights: u32,
+    lightIndices: array<u32, ${maxLightsPerCluster}>
+}
+
+struct ClusterSet {
+    gridDims: vec3u,
+    clusters: array<Cluster>
+}
 
 struct CameraUniforms {
     // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProjMat: mat4x4f,
+    viewMat: mat4x4f,
+    invProjMat: mat4x4f,
+    screenResolution: vec2f,
+    zNear: f32,
+    zFar: f32
+    // NCHORTEK TODO: Add additional uniforms needed for Forward+
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
