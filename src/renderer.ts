@@ -2,6 +2,7 @@ import { Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
+import * as shaders from './shaders/shaders';
 
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
@@ -41,13 +42,26 @@ export async function initWebGPU() {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    const preferredFormat = navigator.gpu.getPreferredCanvasFormat();
+
+    const useBGRAStorage =
+        preferredFormat === "bgra8unorm" &&
+        adapter.features.has("bgra8unorm-storage");
+
+    canvasFormat = useBGRAStorage ? "bgra8unorm" : "rgba8unorm";
+
+    device = await adapter.requestDevice({
+        requiredFeatures: useBGRAStorage
+            ? ["bgra8unorm-storage"]
+            : []
+    });
 
     context = canvas.getContext("webgpu")!;
-    canvasFormat = navigator.gpu.getPreferredCanvasFormat();
     context.configure({
         device: device,
         format: canvasFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT 
+             | GPUTextureUsage.STORAGE_BINDING
     });
 
     console.log("WebGPU init successsful");
@@ -102,6 +116,11 @@ export const vertexBufferLayout: GPUVertexBufferLayout = {
 };
 
 export abstract class Renderer {
+    private debugMode = 0;
+    debugUniformBuffer: GPUBuffer;
+    private heatmapPipeline?: GPURenderPipeline;
+    private heatmapDepthBindGroup?: GPUBindGroup;
+
     protected scene: Scene;
     protected lights: Lights;
     protected camera: Camera;
@@ -117,6 +136,12 @@ export abstract class Renderer {
         this.camera = stage.camera;
         this.stats = stage.stats;
 
+        this.debugUniformBuffer = device.createBuffer({
+            label: "debug view uniform",
+            size: 4,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
     }
 
@@ -125,6 +150,70 @@ export abstract class Renderer {
     }
 
     protected abstract draw(): void;
+
+    get debugView() {
+        return this.debugMode;
+    }
+
+    set debugView(value: number) {
+        this.debugMode = value;
+        device.queue.writeBuffer(this.debugUniformBuffer, 0, new Uint32Array([value]));
+    }
+
+    protected drawClusterHeatmap(encoder: GPUCommandEncoder, view: GPUTextureView,
+        layout: GPUBindGroupLayout, bindGroup: GPUBindGroup, depthView: GPUTextureView) {
+        if (this.debugView !== 1) {
+            return;
+        }
+
+        if (!this.heatmapPipeline) {
+            this.heatmapPipeline = device.createRenderPipeline({
+                label: "cluster heatmap pipeline",
+                layout: device.createPipelineLayout({
+                    bindGroupLayouts: [layout, device.createBindGroupLayout({
+                        entries: [
+                            {
+                                binding: 0,
+                                visibility: GPUShaderStage.FRAGMENT,
+                                texture: { sampleType: "depth" }
+                            }
+                        ]
+                    })]
+                }),
+                vertex: {
+                    module: device.createShaderModule({
+                        code: shaders.clusteredDeferredFullscreenVertSrc
+                    })
+                },
+                fragment: {
+                    module: device.createShaderModule({
+                        code: shaders.clusterHeatmapFragSrc
+                    }),
+                    targets: [{ format: canvasFormat }]
+                }
+            });
+            this.heatmapDepthBindGroup = device.createBindGroup({
+                layout: this.heatmapPipeline.getBindGroupLayout(1),
+                entries: [{ binding: 0, resource: depthView }]
+            });
+        }
+
+        const heatmapPass = encoder.beginRenderPass({
+            label: "cluster heatmap pass",
+            colorAttachments: [
+                {
+                    view,
+                    loadOp: "clear",
+                    storeOp: "store"
+                }
+            ]
+        });
+        heatmapPass.setPipeline(this.heatmapPipeline);
+        heatmapPass.setBindGroup(shaders.constants.bindGroup_scene, bindGroup);
+        heatmapPass.setBindGroup(1, this.heatmapDepthBindGroup!);
+        heatmapPass.draw(3);
+        heatmapPass.end();
+    }
 
     // CHECKITOUT: this is the main rendering loop
     private onFrame(time: number) {
