@@ -10,10 +10,22 @@ struct LightSet {
     lights: array<Light>
 }
 
-// TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct Cluster {
+    numLights: u32,
+    lightIndices: array<u32, ${maxLightsPerCluster}>
+}
 
-struct CameraUniforms {
-    // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+struct ClusterSet {
+    clusters: array<Cluster>
+}
+
+struct CameraUniforms { // total = 52 floats
+    viewProjMat: mat4x4f, // offset = 0 floats
+    viewMat: mat4x4f, // offset = 16 floats
+    invProjMat: mat4x4f, // offset = 32 floats
+    screenSize: vec2f, // offset = 48 floats
+    near: f32, // offset = 50 floats
+    far: f32, // offset = 51 floats
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
@@ -27,4 +39,21 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
 
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
     return light.color * lambert * rangeAttenuation(distToLight);
+}
+
+fn getClusterIndex(fragPosXY: vec2f, viewZ: f32, cameraUniforms: CameraUniforms) -> u32 {
+    let uv = fragPosXY / cameraUniforms.screenSize;
+
+    // Debug for clusters
+    let xSlice = floor(uv.x * ${clusterCountX});
+    let ySlice = floor(uv.y * ${clusterCountY});
+
+    // z slicing from https://www.aortiz.me/2018/12/21/CG.html#part-2
+    let logFarNear = log(cameraUniforms.far / cameraUniforms.near);
+    let zSlice = floor(log(viewZ) * ${clusterCountZ} / logFarNear - ${clusterCountZ} * log(cameraUniforms.near) / logFarNear);
+    let cx = u32(clamp(xSlice, 0.0, f32(${clusterCountX} - 1)));
+    let cy = u32(clamp(ySlice, 0.0, f32(${clusterCountY} - 1)));
+    let cz = u32(clamp(zSlice, 0.0, f32(${clusterCountZ} - 1)));
+
+    return cx + cy * ${clusterCountX} + cz * ${clusterCountX} * ${clusterCountY};
 }

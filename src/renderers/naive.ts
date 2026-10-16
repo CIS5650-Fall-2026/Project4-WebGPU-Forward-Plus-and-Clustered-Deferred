@@ -1,6 +1,8 @@
 import * as renderer from '../renderer';
 import * as shaders from '../shaders/shaders';
 import { Stage } from '../stage/stage';
+import { gpuTimer } from '../gpu_timer';
+import { RenderSettings } from '../renderer';
 
 export class NaiveRenderer extends renderer.Renderer {
     sceneUniformsBindGroupLayout: GPUBindGroupLayout;
@@ -11,13 +13,20 @@ export class NaiveRenderer extends renderer.Renderer {
 
     pipeline: GPURenderPipeline;
 
-    constructor(stage: Stage) {
-        super(stage);
+    renderBundleEncoder: GPURenderBundleEncoder;
+    renderBundle: GPURenderBundle;
+
+    constructor(stage: Stage, settings: RenderSettings) {
+        super(stage, settings);
 
         this.sceneUniformsBindGroupLayout = renderer.device.createBindGroupLayout({
             label: "scene uniforms bind group layout",
             entries: [
-                // TODO-1.2: add an entry for camera uniforms at binding 0, visible to only the vertex shader, and of type "uniform"
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {type: "uniform" }
+                },
                 { // lightSet
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
@@ -30,9 +39,10 @@ export class NaiveRenderer extends renderer.Renderer {
             label: "scene uniforms bind group",
             layout: this.sceneUniformsBindGroupLayout,
             entries: [
-                // TODO-1.2: add an entry for camera uniforms at binding 0
-                // you can access the camera using `this.camera`
-                // if you run into TypeScript errors, you're probably trying to upload the host buffer instead
+                {
+                    binding: 0,
+                    resource: { buffer: this.camera.uniformsBuffer }
+                },
                 {
                     binding: 1,
                     resource: { buffer: this.lights.lightSetStorageBuffer }
@@ -80,6 +90,34 @@ export class NaiveRenderer extends renderer.Renderer {
                 ]
             }
         });
+
+        this.renderBundleEncoder = renderer.device.createRenderBundleEncoder({
+            label: "naive render bundle encoder",
+            colorFormats: [renderer.canvasFormat],
+            depthReadOnly: false,
+            stencilReadOnly: false,
+            depthStencilFormat: "depth24plus"
+        });
+
+        this.encodeRenderCommands(this.renderBundleEncoder);
+
+        this.renderBundle = this.renderBundleEncoder.finish();
+    }
+
+    private encodeRenderCommands(encoder: GPURenderPassEncoder | GPURenderBundleEncoder) {
+        encoder.setPipeline(this.pipeline);
+
+        encoder.setBindGroup(shaders.constants.bindGroup_scene, this.sceneUniformsBindGroup);
+
+        this.scene.iterate(node => {
+            encoder.setBindGroup(shaders.constants.bindGroup_model, node.modelBindGroup);
+        }, material => {
+            encoder.setBindGroup(shaders.constants.bindGroup_material, material.materialBindGroup);
+        }, primitive => {
+            encoder.setVertexBuffer(0, primitive.vertexBuffer);
+            encoder.setIndexBuffer(primitive.indexBuffer, 'uint32');
+            encoder.drawIndexed(primitive.numIndices);
+        });
     }
 
     override draw() {
@@ -88,6 +126,7 @@ export class NaiveRenderer extends renderer.Renderer {
 
         const renderPass = encoder.beginRenderPass({
             label: "naive render pass",
+            timestampWrites: gpuTimer.both(),
             colorAttachments: [
                 {
                     view: canvasTextureView,
@@ -103,22 +142,18 @@ export class NaiveRenderer extends renderer.Renderer {
                 depthStoreOp: "store"
             }
         });
-        renderPass.setPipeline(this.pipeline);
 
-        // TODO-1.2: bind `this.sceneUniformsBindGroup` to index `shaders.constants.bindGroup_scene`
-
-        this.scene.iterate(node => {
-            renderPass.setBindGroup(shaders.constants.bindGroup_model, node.modelBindGroup);
-        }, material => {
-            renderPass.setBindGroup(shaders.constants.bindGroup_material, material.materialBindGroup);
-        }, primitive => {
-            renderPass.setVertexBuffer(0, primitive.vertexBuffer);
-            renderPass.setIndexBuffer(primitive.indexBuffer, 'uint32');
-            renderPass.drawIndexed(primitive.numIndices);
-        });
+        if(this.renderSettings.bUseRenderBundles){
+            renderPass.executeBundles([this.renderBundle]);
+        }
+        else{
+            this.encodeRenderCommands(renderPass);
+        }
 
         renderPass.end();
 
+        gpuTimer.resolve(encoder);
         renderer.device.queue.submit([encoder.finish()]);
+        gpuTimer.read();
     }
 }

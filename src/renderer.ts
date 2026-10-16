@@ -2,6 +2,7 @@ import { Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
+import { cpuTimer } from './cpu_timer';
 
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
@@ -14,6 +15,10 @@ export const fovYDegrees = 45;
 
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
+
+export type RenderSettings = {
+    bUseRenderBundles: boolean;
+}
 
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
@@ -41,7 +46,9 @@ export async function initWebGPU() {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    // If we can, enable timestamp queries
+    const canTimestamp = adapter.features.has('timestamp-query');
+    device = await adapter.requestDevice({ requiredFeatures: canTimestamp ? ['timestamp-query'] : [] });
 
     context = canvas.getContext("webgpu")!;
     canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -111,17 +118,25 @@ export abstract class Renderer {
     private prevTime: number = 0;
     private frameRequestId: number;
 
-    constructor(stage: Stage) {
+    protected renderSettings: RenderSettings;
+
+    constructor(stage: Stage, settings: RenderSettings) {
         this.scene = stage.scene;
         this.lights = stage.lights;
         this.camera = stage.camera;
         this.stats = stage.stats;
 
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+
+        this.renderSettings = settings;
     }
 
     stop(): void {
         cancelAnimationFrame(this.frameRequestId);
+    }
+
+    setRenderSettings(settings: RenderSettings) {
+        this.renderSettings = settings;
     }
 
     protected abstract draw(): void;
@@ -137,9 +152,11 @@ export abstract class Renderer {
         this.lights.onFrame(time);
 
         this.stats.begin();
+        cpuTimer.begin();
 
         this.draw();
 
+        cpuTimer.end();
         this.stats.end();
 
         this.prevTime = time;

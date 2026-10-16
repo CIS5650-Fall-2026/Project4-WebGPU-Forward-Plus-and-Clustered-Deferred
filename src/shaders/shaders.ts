@@ -26,17 +26,24 @@ import clusteringComputeRaw from './clustering.cs.wgsl?raw';
 export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
+    bindGroup_gBuffers: 1,
     bindGroup_material: 2,
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    maxLightsPerCluster: 256,
+    clusterCountX: 16,
+    clusterCountY: 9,
+    clusterCountZ: 24,
+    clusterWorkgroupSize: 4
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return new Function(...Object.keys(constants), 'return `' + raw + '`;')(...Object.values(constants));
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
