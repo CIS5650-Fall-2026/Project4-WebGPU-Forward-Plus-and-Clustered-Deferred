@@ -30,7 +30,18 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+    maxNumLights: 8000,
+
+    clusterCountX: 64,
+    clusterCountY: 36,
+    clusterCountZ: 24,
+    clusteringWorkgroupSize: 128,
+
+    lightIndexCapacity: 16 * 1024 * 1024,
+
+    // 0: normal, 1: forawrd+ light-count heatmap
+    forwardPlusDebugMode: 1
 };
 
 // =================================
