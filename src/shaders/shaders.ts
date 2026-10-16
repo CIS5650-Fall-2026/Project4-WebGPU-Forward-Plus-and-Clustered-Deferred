@@ -27,16 +27,33 @@ export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    bindGroup_gBuffer: 1, // only used by the clustered deferred fullscreen pass, which has no model or material bind groups
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // light clustering: screen-space tiles in X and Y, exponentially spaced depth slices in Z
+    // (see the README's performance analysis for how these were chosen)
+    clusterCountX: 16,
+    clusterCountY: 9,
+    clusterCountZ: 64,
+    get numClusters() {
+        return this.clusterCountX * this.clusterCountY * this.clusterCountZ;
+    },
+    // each cluster (count + indices) is exactly 8 KB; the fullest cluster at 5000 lights needed ~1300 slots in testing
+    maxLightsPerCluster: 2047,
+
+    clusteringWorkgroupSize: 64
 };
 
 // =================================
 
+// Shader sources are evaluated as template literals against `constants`. Passing the object into the generated function
+// (instead of referencing it from a direct eval) keeps the bundler from tree-shaking constants that only shaders read,
+// such as lightRadius, out of production builds.
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return new Function('constants', 'return `' + raw.replaceAll('${', '${constants.') + '`;')(constants);
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
