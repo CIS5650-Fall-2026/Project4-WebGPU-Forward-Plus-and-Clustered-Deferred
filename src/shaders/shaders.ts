@@ -30,13 +30,18 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+    clusterX: 16,
+    clusterY: 16,
+    clusterZ: 16,
+    lightsPerCluster: 256,
+    clusterGroupSize: 32
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return new Function('constants', 'return `' + raw.replaceAll('${', '${constants.') + '`')(constants);
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
