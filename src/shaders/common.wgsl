@@ -7,13 +7,29 @@ struct Light {
 
 struct LightSet {
     numLights: u32,
-    lights: array<Light>
+    lights: array<Light> //NOTE: laid out 'inline' in memory
 }
 
 // TODO-2: you may want to create a ClusterSet struct similar to LightSet
+//TODO: Maybe compare storing the lights vs storing indices to the lights?
+struct ClusterSet {
+    min: vec3f,
+    max: vec3f,
+    lightCounter: u32,
+    lights: array<u32, ${maxClusterLights}>
+}
 
 struct CameraUniforms {
     // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProj: mat4x4f,
+
+    //For clustering
+    view: mat4x4f,
+    invProj: mat4x4f,
+
+    dims: vec2f,
+    near: f32,
+    far: f32
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
