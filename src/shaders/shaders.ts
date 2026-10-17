@@ -28,8 +28,15 @@ export const constants = {
     bindGroup_model: 1,
     bindGroup_material: 2,
 
-    moveLightsWorkgroupSize: 128,
+    // fullscreen deferred pass uses group 1 for textures
+    bindGroup_gBuffer: 1,
 
+    moveLightsWorkgroupSize: 128,
+    clusterTileWidth: 128,
+    clusterTileHeight: 128,
+    clusterDepthSlices: 32,
+    maxLightsPerCluster: 256,
+    clusterWorkgroupSize: 64,
     lightRadius: 2
 };
 

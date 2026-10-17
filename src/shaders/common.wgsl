@@ -11,9 +11,37 @@ struct LightSet {
 }
 
 // TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct Cluster {
+    count: u32,
+    indices: array<u32, ${maxLightsPerCluster}>
+}
+
+struct ClusterSet {
+    clusters: array<Cluster>
+}
 
 struct CameraUniforms {
     // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProjMat: mat4x4f,
+    viewMat: mat4x4f,
+    inverseProjMat: mat4x4f,
+    viewportAndClip: vec4f // framebuffer width, height, near, far
+}
+
+fn clusterGridSize(viewport: vec2f) -> vec3u {
+    let tileSize = vec2f(${clusterTileWidth}, ${clusterTileHeight});
+    return vec3u(vec2u(ceil(viewport / tileSize)), ${clusterDepthSlices});
+}
+
+fn clusterIndexFromPixel(pixel: vec2f, depth: f32, viewportAndClip: vec4f) -> u32 {
+    let grid = clusterGridSize(viewportAndClip.xy);
+    let tileSize = vec2f(${clusterTileWidth}, ${clusterTileHeight});
+    let xy = min(vec2u(floor(pixel / tileSize)), grid.xy - vec2u(1u));
+    let nearPlane = viewportAndClip.z;
+    let farPlane = viewportAndClip.w;
+    let slice = floor(log(clamp(depth, nearPlane, farPlane) / nearPlane) / log(farPlane / nearPlane) * f32(grid.z));
+    let z = u32(clamp(slice, 0.f, f32(grid.z - 1u)));
+    return xy.x + grid.x * (xy.y + grid.y * z);
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius

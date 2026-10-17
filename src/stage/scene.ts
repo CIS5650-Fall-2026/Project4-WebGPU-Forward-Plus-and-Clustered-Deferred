@@ -286,7 +286,14 @@ export class Scene {
     }
 
     async loadGltf(filePath: string) {
-        const gltfWithBuffers = await load(filePath) as GLTFWithBuffers;
+        // This stuff had compatibility issues so changing it to this version
+        const gltfWithBuffers = await load(filePath, GLTFLoader, {
+            gltf: {
+                loadBuffers: true,
+                loadImages: true,
+                postProcess: false
+            }
+        }) as GLTFWithBuffers;
         const gltf = gltfWithBuffers.json;
 
         let sceneTextures: Texture[] = [];
