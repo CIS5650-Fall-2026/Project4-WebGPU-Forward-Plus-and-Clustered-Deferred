@@ -16,6 +16,13 @@ import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
 
+import bloomBrightRaw from './bloom_bright.cs.wgsl?raw';
+import bloomBlurRaw from './bloom_blur.cs.wgsl?raw';
+import bloomCompositeRaw from './bloom_composite.cs.wgsl?raw';
+import blitFragRaw from './blit.fs.wgsl?raw';
+
+import toonRaw from './toon.cs.wgsl?raw';
+
 // CONSTANTS (for use in shaders)
 // =================================
 
@@ -30,13 +37,37 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // clustering
+    clusterGridSizeX: 16,
+    clusterGridSizeY: 9,
+    clusterGridSizeZ: 24,
+    maxLightsPerCluster: 200,
+    clusteringWorkgroupSize: 4,
+
+    // bloom
+    bloomWorkgroupSize: 8,
+
+    // toon
+    toonEdgeThreshold: 0.02,
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -56,3 +87,10 @@ export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clust
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
+
+export const bloomBrightSrc: string = processShaderRaw(bloomBrightRaw);
+export const bloomBlurSrc: string = processShaderRaw(bloomBlurRaw);
+export const bloomCompositeSrc: string = processShaderRaw(bloomCompositeRaw);
+export const blitFragSrc: string = processShaderRaw(blitFragRaw);
+
+export const toonSrc: string = processShaderRaw(toonRaw);
