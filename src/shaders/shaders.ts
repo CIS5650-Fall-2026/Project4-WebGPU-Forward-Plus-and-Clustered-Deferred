@@ -30,8 +30,20 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    maxLightsPerCluster: 500,
+
+    clusterX: 16,
+    clusterY: 9,
+    clusterZ: 24,
+
+    clusteringWorkgroupX: 4,
+    clusteringWorkgroupY: 4,
+    clusteringWorkgroupZ: 4
 };
+
+(globalThis as any).shaderConstants = constants; // to fix issue with deploying on github pages
 
 // =================================
 
