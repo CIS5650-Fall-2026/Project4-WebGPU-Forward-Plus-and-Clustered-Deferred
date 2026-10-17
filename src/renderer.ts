@@ -15,6 +15,12 @@ export const fovYDegrees = 45;
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
 
+// CHECKITOUT: debug views toggled from the GUI. Renderers read these when creating their pipelines, so changing one
+// recreates the current renderer.
+export const debugSettings = {
+    showClusterLightCounts: false // Forward+ and Clustered Deferred: color each pixel by its cluster's light count
+};
+
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
     canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
