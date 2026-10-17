@@ -32,9 +32,11 @@ gui.add(lights, 'numLights').min(1).max(Lights.maxNumLights).step(1).onChange(()
 const stage = new Stage(scene, lights, camera, stats);
 
 var renderer: Renderer | undefined;
+var currMode : string;
 
 function setRenderer(mode: string) {
     renderer?.stop();
+    currMode = mode;
 
     switch (mode) {
         case renderModes.naive:
@@ -48,6 +50,10 @@ function setRenderer(mode: string) {
             break;
     }
 }
+
+// gui.add(lights, 'maxLightsPerCluster').min(1).max(Lights.maxNumLights).step(1).onChange(() => {
+//     lights.updateMaxLightsPerCluster();
+// });
 
 const renderModes = { naive: 'naive', forwardPlus: 'forward+', clusteredDeferred: 'clustered deferred' };
 let renderModeController = gui.add({ mode: renderModes.naive }, 'mode', renderModes);

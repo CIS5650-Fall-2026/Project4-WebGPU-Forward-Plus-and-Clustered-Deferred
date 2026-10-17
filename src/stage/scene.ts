@@ -203,6 +203,7 @@ export class Node {
 }
 
 function createTexture(imageBitmap: ImageBitmap): GPUTexture {
+    console.log(`Creating texture from image bitmap with dimensions ${imageBitmap.width}x${imageBitmap.height}`);
     let texture = device.createTexture({
         size: [imageBitmap.width, imageBitmap.height],
         format: 'rgba8unorm',

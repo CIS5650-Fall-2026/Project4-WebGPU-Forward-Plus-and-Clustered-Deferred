@@ -10,10 +10,31 @@ struct LightSet {
     lights: array<Light>
 }
 
-// TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct Cluster {
+    bbxMin: vec3f,
+    lightStart: u32,
+    bbxMax: vec3f,
+    lightCount: u32
+}
+
+struct ClusterSet {
+    clusterDim: vec3u,
+    clusters: array<Cluster>
+}
+
+struct ClusterLightIDs {
+    count: atomic<u32>,
+    indices: array<u32>
+}
 
 struct CameraUniforms {
-    // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProj: mat4x4f,
+    view: mat4x4f,
+    inverseProj: mat4x4f,
+    inverseViewProj: mat4x4f,
+    resolution: vec2f,
+    clipPlanes: vec2f,
+    position: vec3f,
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
@@ -27,4 +48,24 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
 
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
     return light.color * lambert * rangeAttenuation(distToLight);
+}
+
+fn getClusterId3(clusterIdx: u32, clusterDim: vec3u) -> vec3u {
+    return vec3u(
+        clusterIdx % clusterDim.x, 
+        (clusterIdx / clusterDim.x) % clusterDim.y,
+        (clusterIdx / (clusterDim.x * clusterDim.y)) % clusterDim.z
+    );
+}
+
+fn getClusterId1(clusterId3: vec3u, clusterDim: vec3u) -> u32 {
+    return clusterId3.x + clusterId3.y * clusterDim.x + clusterId3.z * clusterDim.x * clusterDim.y;
+}
+
+fn getClusterDepthID(z: f32, zClusterCount: u32) -> f32 {
+    return floor(f32(zClusterCount)*saturate((z-${clusterLowerZBound})/(${clusterUpperZBound}-${clusterLowerZBound})));
+}
+
+fn getClusterDepth(normZ: f32) -> f32 {
+    return mix(${clusterLowerZBound}, ${clusterUpperZBound}, normZ);//normZ*10.0+0.1;
 }
