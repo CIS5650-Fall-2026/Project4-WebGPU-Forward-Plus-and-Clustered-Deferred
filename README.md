@@ -3,27 +3,47 @@ WebGL Forward+ and Clustered Deferred Shading
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 4**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) **Google Chrome 222.2** on
-  Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
-
+* Nico Kong
+   [LinkedIn](https://www.linkedin.com/in/nicola-kong/), Email: nebfinn@gmail.com
+* Tested on: Windows 11, AMD Ryzen AI 9 HX 370 @ 2.0GHz 32GB, RTX 4060 8GB (Personal Laptop)
+  
 ### Live Demo
 
-[![](img/thumb.png)](http://TODO.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred)
+[![](img/thumb.png)](http://neb-create.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred)
 
 ### Demo Video/GIF
 
-[![](img/video.mp4)](TODO)
+!! High quality video available inside of <img/demo.mp4>
 
-### (TODO: Your README)
+https://github.com/user-attachments/assets/f1057d2e-e0fd-4a7c-90d4-5be6be3db110
 
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
+## Overview
 
-This assignment has a considerable amount of performance analysis compared
-to implementation work. Complete the implementation early to leave time!
+We compare different implementations for rendering a scene with a large number of dynamic, moving lights.
 
-### Credits
+### Implemented Features
+
+- Naive forward rendering
+- Forward+ Rendering with light clustering
+- Deferred rendering with light clustering
+
+## Performance Analysis
+
+### Forward+ vs. Clustered Deferred
+
+Describe how the two renderers perform and compare them.
+
+| Workload or configuration | Naive | Forward+ time | Clustered Deferred time |
+|---|---:|---:|---|
+| 50 Lights | 11 ms | 6 ms | 6 ms |
+| 500 Lights | 103 ms | 8 ms | 6 ms |
+| 5000 Lights | 1320 ms | 71 ms | 18 ms |
+
+- **Render time**: Clustered Deferred consistently performs the best, and Naive consistently performs the worst.
+- **Workload differences**: Deferred and Forward+ use more memory, and there is overhead from setting up the cluster data. Deferred uses even more memory with the extra G-buffers.
+- **Analysis**: Clustering obviously improves runtime, as the number of lights checked per pixel no longer scales logarithmically with the number of lights. Deferred rendering likely performs even better due to better utilization of parallelism in the second pass and color calculation.
+
+### Credits 
 
 - [Vite](https://vitejs.dev/)
 - [loaders.gl](https://loaders.gl/)
