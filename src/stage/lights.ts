@@ -1,5 +1,5 @@
 import { vec3 } from "wgpu-matrix";
-import { device } from "../renderer";
+import { device, canvas } from "../renderer";
 
 import * as shaders from '../shaders/shaders';
 import { Camera } from "./camera";
@@ -29,6 +29,11 @@ export class Lights {
     moveLightsComputePipeline: GPUComputePipeline;
 
     // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
+    clusterCount: number;
+    clusterSetStorageBuffer: GPUBuffer;
+    clusteringBindGroupLayout: GPUBindGroupLayout;
+    clusteringBindGroup: GPUBindGroup;
+    clusteringPipeline: GPUComputePipeline;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -94,6 +99,61 @@ export class Lights {
         });
 
         // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
+        const gridX = Math.ceil(canvas.width / shaders.constants.clusterTileWidth);
+        const gridY = Math.ceil(canvas.height / shaders.constants.clusterTileHeight);
+        this.clusterCount = gridX * gridY * shaders.constants.clusterDepthSlices;
+
+        // Each cluster stores a u32 count followed by a u32 list with fixed capacity
+        this.clusterSetStorageBuffer = device.createBuffer({
+            label: "cluster light lists",
+            size: this.clusterCount * (1 + shaders.constants.maxLightsPerCluster) * 4,
+            usage: GPUBufferUsage.STORAGE
+        });
+
+        this.clusteringBindGroupLayout = device.createBindGroupLayout({
+            label: "clustering bind group layout",
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "read-only-storage" }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "storage" }
+                }
+            ]
+        });
+
+        this.clusteringBindGroup = device.createBindGroup({
+            label: "clustering bind group",
+            layout: this.clusteringBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.camera.uniformsBuffer } },
+                { binding: 1, resource: { buffer: this.lightSetStorageBuffer } },
+                { binding: 2, resource: { buffer: this.clusterSetStorageBuffer } }
+            ]
+        });
+
+        this.clusteringPipeline = device.createComputePipeline({
+            label: "clustering pipeline",
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [this.clusteringBindGroupLayout]
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    label: "clustering compute shader",
+                    code: shaders.clusteringComputeSrc
+                }),
+                entryPoint: "main"
+            }
+        });
     }
 
     private populateLightsBuffer() {
@@ -110,9 +170,14 @@ export class Lights {
         device.queue.writeBuffer(this.lightSetStorageBuffer, 0, new Uint32Array([this.numLights]));
     }
 
-    doLightClustering(encoder: GPUCommandEncoder) {
+    doLightClustering(encoder: GPUCommandEncoder, timestampWrites?: GPUComputePassTimestampWrites) {
         // TODO-2: run the light clustering compute pass(es) here
         // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
+        const pass = encoder.beginComputePass({ label: "light clustering pass", timestampWrites });
+        pass.setPipeline(this.clusteringPipeline);
+        pass.setBindGroup(0, this.clusteringBindGroup);
+        pass.dispatchWorkgroups(Math.ceil(this.clusterCount / shaders.constants.clusterWorkgroupSize));
+        pass.end();
     }
 
     // CHECKITOUT: this is where the light movement compute shader is dispatched from the host

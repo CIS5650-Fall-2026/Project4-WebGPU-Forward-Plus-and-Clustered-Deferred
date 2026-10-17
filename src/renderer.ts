@@ -15,6 +15,8 @@ export const fovYDegrees = 45;
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
 
+export const gpuTiming = { totalMs: "..." };
+
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
     canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
@@ -41,7 +43,7 @@ export async function initWebGPU() {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] });
 
     context = canvas.getContext("webgpu")!;
     canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -111,20 +113,90 @@ export abstract class Renderer {
     private prevTime: number = 0;
     private frameRequestId: number;
 
+    // Timing stuff
+    private readonly timestampQuerySet: GPUQuerySet;
+    private readonly timestampResolveBuffer: GPUBuffer;
+    private readonly timestampReadbackBuffer: GPUBuffer;
+    private timestampCount = 0;
+    private timingPending = false;
+    private stopped = false;
+
     constructor(stage: Stage) {
         this.scene = stage.scene;
         this.lights = stage.lights;
         this.camera = stage.camera;
         this.stats = stage.stats;
 
+        this.timestampQuerySet = device.createQuerySet({
+            label: "core pass timestamps",
+            type: "timestamp",
+            count: 6
+        });
+        this.timestampResolveBuffer = device.createBuffer({
+            label: "core pass timestamp resolve",
+            size: 6 * 8, // timestamp is 64-bit unsigned int in ns
+            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC
+        });
+        this.timestampReadbackBuffer = device.createBuffer({
+            label: "core pass timestamp readback",
+            size: 6 * 8,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        gpuTiming.totalMs = "...";
+
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
     }
 
     stop(): void {
         cancelAnimationFrame(this.frameRequestId);
+        this.stopped = true;
     }
 
     protected abstract draw(): void;
+
+    protected passTimestamps(): GPURenderPassTimestampWrites | undefined {
+        if (this.timingPending) {
+            return undefined;
+        }
+
+        const firstIndex = this.timestampCount;
+        this.timestampCount += 2;
+        return {
+            querySet: this.timestampQuerySet,
+            beginningOfPassWriteIndex: firstIndex,
+            endOfPassWriteIndex: firstIndex + 1
+        };
+    }
+
+    protected submitWithTiming(encoder: GPUCommandEncoder): void {
+        const queryCount = this.timestampCount;
+        if (queryCount > 0) {
+            encoder.resolveQuerySet(this.timestampQuerySet, 0, queryCount, this.timestampResolveBuffer, 0);
+            encoder.copyBufferToBuffer(this.timestampResolveBuffer, 0,
+                this.timestampReadbackBuffer, 0, queryCount * 8);
+            this.timingPending = true;
+        }
+
+        device.queue.submit([encoder.finish()]);
+        if (queryCount > 0) {
+            void this.readGpuTime(queryCount);
+        }
+    }
+
+    private async readGpuTime(queryCount: number): Promise<void> {
+        await this.timestampReadbackBuffer.mapAsync(GPUMapMode.READ);
+        const timestamps = new BigUint64Array(this.timestampReadbackBuffer.getMappedRange());
+        let totalNanoseconds = 0n;
+        for (let i = 0; i < queryCount; i += 2) {
+            totalNanoseconds += timestamps[i + 1] - timestamps[i];  // sum all pass times
+        }
+        this.timestampReadbackBuffer.unmap();
+        this.timingPending = false;
+
+        if (!this.stopped) {
+            gpuTiming.totalMs = (Number(totalNanoseconds) / 1_000_000).toFixed(3);
+        }
+    }
 
     // CHECKITOUT: this is the main rendering loop
     private onFrame(time: number) {
@@ -138,6 +210,7 @@ export abstract class Renderer {
 
         this.stats.begin();
 
+        this.timestampCount = 0;
         this.draw();
 
         this.stats.end();
