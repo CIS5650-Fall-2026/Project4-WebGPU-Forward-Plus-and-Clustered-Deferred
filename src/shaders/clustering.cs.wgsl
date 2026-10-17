@@ -1,23 +1,42 @@
-// TODO-2: implement the light clustering compute shader
+@group(0) @binding(0) var<uniform> camera: CameraUniforms;
+@group(0) @binding(1) var<storage, read> lightSet: LightSet;
+@group(0) @binding(2) var<storage, read_write> clusterSet: ClusterSet;
 
-// ------------------------------------
-// Calculating cluster bounds:
-// ------------------------------------
-// For each cluster (X, Y, Z):
-//     - Calculate the screen-space bounds for this cluster in 2D (XY).
-//     - Calculate the depth bounds for this cluster in Z (near and far planes).
-//     - Convert these screen and depth bounds into view-space coordinates.
-//     - Store the computed bounding box (AABB) for the cluster.
+fn viewPoint(pixel: vec2f, depth: f32) -> vec3f {
+    let ndc = vec2f(pixel.x / camera.screenSize.x * 2 - 1,
+                    1 - pixel.y / camera.screenSize.y * 2);
+    let point = camera.invProjMat * vec4f(ndc, 1, 1);
+    return point.xyz * (-depth / point.z);
+}
 
-// ------------------------------------
-// Assigning lights to clusters:
-// ------------------------------------
-// For each cluster:
-//     - Initialize a counter for the number of lights in this cluster.
-
-//     For each light:
-//         - Check if the light intersects with the cluster’s bounding box (AABB).
-//         - If it does, add the light to the cluster's light list.
-//         - Stop adding lights if the maximum number of lights is reached.
-
-//     - Store the number of lights assigned to this cluster.
+@compute @workgroup_size(${clusteringWorkgroupSize})
+fn main(@builtin(global_invocation_id) id: vec3u) {
+    let index = id.x;
+    if (index >= ${clusterCountX}u * ${clusterCountY}u * ${clusterCountZ}u) { return; }
+    let x = index % ${clusterCountX}u;
+    let y = (index / ${clusterCountX}u) % ${clusterCountY}u;
+    let z = index / (${clusterCountX}u * ${clusterCountY}u);
+    let pixelMin = vec2f(f32(x), f32(y)) / vec2f(${clusterCountX}, ${clusterCountY}) * camera.screenSize;
+    let pixelMax = vec2f(f32(x + 1u), f32(y + 1u)) / vec2f(${clusterCountX}, ${clusterCountY}) * camera.screenSize;
+    let nearDepth = camera.nearPlane * pow(camera.farPlane / camera.nearPlane, f32(z) / f32(${clusterCountZ}));
+    let farDepth = camera.nearPlane * pow(camera.farPlane / camera.nearPlane, f32(z + 1u) / f32(${clusterCountZ}));
+    let a = viewPoint(pixelMin, nearDepth);
+    let b = viewPoint(pixelMax, nearDepth);
+    let c = viewPoint(pixelMin, farDepth);
+    let d = viewPoint(pixelMax, farDepth);
+    let boundsMin = min(min(a, b), min(c, d));
+    let boundsMax = max(max(a, b), max(c, d));
+    clusterSet.clusters[index].minBounds = boundsMin;
+    clusterSet.clusters[index].maxBounds = boundsMax;
+    var count = 0u;
+    for (var lightIdx = 0u; lightIdx < lightSet.numLights; lightIdx++) {
+        let center = (camera.viewMat * vec4f(lightSet.lights[lightIdx].pos, 1)).xyz;
+        let delta = center - clamp(center, boundsMin, boundsMax);
+        if (dot(delta, delta) <= f32(${lightRadius} * ${lightRadius})) {
+            clusterSet.clusters[index].lightIndices[count] = lightIdx;
+            count++;
+            if (count == ${maxLightsPerCluster}u) { break; }
+        }
+    }
+    clusterSet.clusters[index].numLights = count;
+}
