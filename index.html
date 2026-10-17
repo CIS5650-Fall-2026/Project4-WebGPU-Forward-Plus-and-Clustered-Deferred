@@ -10,6 +10,37 @@
 
   <body>
     <canvas id="mainCanvas"></canvas>
+    <section id="benchmark-panel" aria-label="Renderer benchmark">
+      <header class="benchmark-header">
+        <h2>Renderer benchmark</h2>
+        <button id="benchmark-hide" type="button" aria-label="Close benchmark panel" aria-keyshortcuts="B" title="Close benchmark (B)">×</button>
+      </header>
+      <label>
+        Build label
+        <input id="benchmark-version" type="text" value="working-tree">
+      </label>
+      <label>
+        Warm-up (seconds)
+        <input id="benchmark-warmup" type="number" value="3" min="0" max="60" step="1">
+      </label>
+      <label>
+        Samples per renderer
+        <input id="benchmark-samples" type="number" value="300" min="10" max="10000" step="10">
+      </label>
+      <label>
+        Renderer set
+        <select id="benchmark-renderer-set">
+          <option value="all">All renderers</option>
+          <option value="forward-deferred">Forward+ vs clustered deferred</option>
+        </select>
+      </label>
+      <div class="benchmark-actions">
+        <button id="benchmark-start" type="button">Benchmark all</button>
+        <button id="benchmark-stop" type="button" disabled>Stop</button>
+        <button id="benchmark-download" type="button" disabled>Download CSV</button>
+      </div>
+      <output id="benchmark-status" aria-live="polite">Ready</output>
+    </section>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

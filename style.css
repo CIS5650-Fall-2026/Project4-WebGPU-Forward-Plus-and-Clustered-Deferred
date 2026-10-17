@@ -8,3 +8,82 @@ html, body {
     width: 100%;
     height: 100%;
 }
+
+#benchmark-panel {
+    position: fixed;
+    z-index: 10;
+    bottom: 12px;
+    left: 12px;
+    width: 260px;
+    box-sizing: border-box;
+    padding: 12px;
+    color: #f2f2f2;
+    background: rgb(20 24 30 / 92%);
+    border: 1px solid #626c7a;
+    border-radius: 6px;
+    font: 13px/1.35 system-ui, sans-serif;
+}
+
+#benchmark-panel h2 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.benchmark-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+#benchmark-hide {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    place-items: center;
+    color: #f2f2f2;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    font: 20px/1 system-ui, sans-serif;
+    cursor: pointer;
+}
+
+#benchmark-hide:hover {
+    background: rgb(255 255 255 / 16%);
+}
+
+#benchmark-panel label {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+}
+
+#benchmark-panel input {
+    box-sizing: border-box;
+    width: 100%;
+}
+
+#benchmark-panel select {
+    width: 100%;
+}
+
+.benchmark-actions {
+    display: flex;
+    gap: 5px;
+    margin: 10px 0 6px;
+}
+
+.benchmark-actions button {
+    flex: 1;
+    padding: 5px;
+}
+
+#benchmark-status {
+    display: block;
+    min-height: 2.6em;
+    overflow-wrap: anywhere;
+}

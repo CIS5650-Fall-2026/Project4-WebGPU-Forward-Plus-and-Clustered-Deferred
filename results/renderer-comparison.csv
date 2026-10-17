@@ -1,0 +1,7 @@
+version,renderer,num_lights,sample_count,frame_interval_mean_ms,frame_interval_median_ms,cpu_submit_mean_ms,cpu_submit_median_ms,width_px,height_px,render_bundles,forward_plus_depth,browser
+current-working-tree,forward+,500,200,6.060,6.100,0.104,0.100,1058,567,enabled,enabled,"Chrome 150 Electron 43.7.7"
+current-working-tree,clustered deferred,500,200,6.060,6.100,0.176,0.200,1058,567,enabled,not-applicable,"Chrome 150 Electron 43.7.7"
+current-working-tree,forward+,2000,200,55.515,54.500,0.210,0.200,1058,567,enabled,enabled,"Chrome 150 Electron 43.7.7"
+current-working-tree,clustered deferred,2000,200,37.363,36.400,0.310,0.300,1058,567,enabled,not-applicable,"Chrome 150 Electron 43.7.7"
+current-working-tree,forward+,5000,200,152.660,151.600,0.197,0.200,1058,567,enabled,enabled,"Chrome 150 Electron 43.7.7"
+current-working-tree,clustered deferred,5000,200,98.753,97.000,0.281,0.300,1058,567,enabled,not-applicable,"Chrome 150 Electron 43.7.7"

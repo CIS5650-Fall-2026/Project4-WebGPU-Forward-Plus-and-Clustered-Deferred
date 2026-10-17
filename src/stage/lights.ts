@@ -1,5 +1,5 @@
 import { vec3 } from "wgpu-matrix";
-import { device } from "../renderer";
+import { canvas, device } from "../renderer";
 
 import * as shaders from '../shaders/shaders';
 import { Camera } from "./camera";
@@ -28,7 +28,13 @@ export class Lights {
     moveLightsComputeBindGroup: GPUBindGroup;
     moveLightsComputePipeline: GPUComputePipeline;
 
-    // TODO-2: add layouts, pipelines, textures, etc. needed for light clustering here
+    clusterDataBuffer: GPUBuffer;
+    readonly allActiveClusterMaskBuffer: GPUBuffer;
+    readonly forwardPlusClusterMaskBuffer: GPUBuffer;
+    private clusteringBindGroup: GPUBindGroup;
+    private clusteringPipeline: GPUComputePipeline;
+    private forwardPlusClusteringBindGroup: GPUBindGroup;
+    private clusterCount: number;
 
     constructor(camera: Camera) {
         this.camera = camera;
@@ -93,7 +99,84 @@ export class Lights {
             }
         });
 
-        // TODO-2: initialize layouts, pipelines, textures, etc. needed for light clustering here
+        const tileSize = shaders.constants.clusterTileSize;
+        const gridX = Math.ceil(canvas.width / tileSize);
+        const gridY = Math.ceil(canvas.height / tileSize);
+        this.clusterCount = gridX * gridY * shaders.constants.clusterDepthSlices;
+        const clusterStride = shaders.constants.maxLightsPerCluster + 1;
+        this.clusterDataBuffer = device.createBuffer({
+            label: "cluster light lists",
+            size: this.clusterCount * clusterStride * Uint32Array.BYTES_PER_ELEMENT,
+            usage: GPUBufferUsage.STORAGE
+        });
+        const maskBufferSize = this.clusterCount * Uint32Array.BYTES_PER_ELEMENT;
+        this.allActiveClusterMaskBuffer = device.createBuffer({
+            label: "all-active cluster mask",
+            size: maskBufferSize,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        this.forwardPlusClusterMaskBuffer = device.createBuffer({
+            label: "depth-culled Forward+ cluster mask",
+            size: maskBufferSize,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        const allActiveMask = new Uint32Array(this.clusterCount);
+        allActiveMask.fill(1);
+        device.queue.writeBuffer(this.allActiveClusterMaskBuffer, 0, allActiveMask);
+
+        const clusteringBindGroupLayout = device.createBindGroupLayout({
+            label: "light clustering bind group layout",
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "read-only-storage" }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "uniform" }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "storage" }
+                },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: "storage" }
+                }
+            ]
+        });
+
+        const createClusteringBindGroup = (clusterMaskBuffer: GPUBuffer) => device.createBindGroup({
+            label: "light clustering bind group",
+            layout: clusteringBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.lightSetStorageBuffer } },
+                { binding: 1, resource: { buffer: this.camera.uniformsBuffer } },
+                { binding: 2, resource: { buffer: this.clusterDataBuffer } },
+                { binding: 3, resource: { buffer: clusterMaskBuffer } }
+            ]
+        });
+        this.clusteringBindGroup = createClusteringBindGroup(this.allActiveClusterMaskBuffer);
+        this.forwardPlusClusteringBindGroup = createClusteringBindGroup(this.forwardPlusClusterMaskBuffer);
+
+        this.clusteringPipeline = device.createComputePipeline({
+            label: "light clustering compute pipeline",
+            layout: device.createPipelineLayout({
+                label: "light clustering compute pipeline layout",
+                bindGroupLayouts: [clusteringBindGroupLayout]
+            }),
+            compute: {
+                module: device.createShaderModule({
+                    label: "light clustering compute shader",
+                    code: shaders.clusteringComputeSrc
+                }),
+                entryPoint: "main"
+            }
+        });
     }
 
     private populateLightsBuffer() {
@@ -110,9 +193,17 @@ export class Lights {
         device.queue.writeBuffer(this.lightSetStorageBuffer, 0, new Uint32Array([this.numLights]));
     }
 
-    doLightClustering(encoder: GPUCommandEncoder) {
-        // TODO-2: run the light clustering compute pass(es) here
-        // implementing clustering here allows for reusing the code in both Forward+ and Clustered Deferred
+    doLightClustering(encoder: GPUCommandEncoder, useForwardPlusMask = false) {
+        const computePass = encoder.beginComputePass({ label: "light clustering pass" });
+        computePass.setPipeline(this.clusteringPipeline);
+        computePass.setBindGroup(
+            0,
+            useForwardPlusMask ? this.forwardPlusClusteringBindGroup : this.clusteringBindGroup
+        );
+        computePass.dispatchWorkgroups(
+            Math.ceil(this.clusterCount / shaders.constants.clusteringWorkgroupSize)
+        );
+        computePass.end();
     }
 
     // CHECKITOUT: this is where the light movement compute shader is dispatched from the host

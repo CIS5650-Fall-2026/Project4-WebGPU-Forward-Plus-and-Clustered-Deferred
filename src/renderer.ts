@@ -8,6 +8,16 @@ export var canvasFormat: GPUTextureFormat;
 export var context: GPUCanvasContext;
 export var device: GPUDevice;
 export var canvasTextureView: GPUTextureView;
+export let renderBundlesEnabled = true;
+export let forwardPlusDepthOptimizationEnabled = true;
+
+export function setRenderBundlesEnabled(enabled: boolean) {
+    renderBundlesEnabled = enabled;
+}
+
+export function setForwardPlusDepthOptimizationEnabled(enabled: boolean) {
+    forwardPlusDepthOptimizationEnabled = enabled;
+}
 
 export var aspectRatio: number;
 export const fovYDegrees = 45;
@@ -41,13 +51,20 @@ export async function initWebGPU() {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    const supportsBgraStorage = adapter.features.has("bgra8unorm-storage");
+    device = await adapter.requestDevice({
+        requiredFeatures: supportsBgraStorage ? ["bgra8unorm-storage"] : []
+    });
 
     context = canvas.getContext("webgpu")!;
     canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    if (canvasFormat === "bgra8unorm" && !supportsBgraStorage) {
+        canvasFormat = "rgba8unorm";
+    }
     context.configure({
         device: device,
         format: canvasFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING,
     });
 
     console.log("WebGPU init successsful");
@@ -110,6 +127,7 @@ export abstract class Renderer {
 
     private prevTime: number = 0;
     private frameRequestId: number;
+    onFrameMetrics: ((metrics: { frameIntervalMs: number; cpuSubmitMs: number }) => void) | undefined;
 
     constructor(stage: Stage) {
         this.scene = stage.scene;
@@ -128,7 +146,8 @@ export abstract class Renderer {
 
     // CHECKITOUT: this is the main rendering loop
     private onFrame(time: number) {
-        if (this.prevTime == 0) {
+        const isFirstFrame = this.prevTime === 0;
+        if (isFirstFrame) {
             this.prevTime = time;
         }
 
@@ -138,9 +157,18 @@ export abstract class Renderer {
 
         this.stats.begin();
 
+        const drawStart = performance.now();
         this.draw();
+        const cpuSubmitMs = performance.now() - drawStart;
 
         this.stats.end();
+
+        if (!isFirstFrame) {
+            this.onFrameMetrics?.({
+                frameIntervalMs: deltaTime,
+                cpuSubmitMs
+            });
+        }
 
         this.prevTime = time;
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
