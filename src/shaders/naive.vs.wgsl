@@ -3,7 +3,10 @@
 // TODO-1.3: add a uniform variable here for camera uniforms (of type CameraUniforms)
 // make sure to use ${bindGroup_scene} for the group
 
+// shaders are preprocessed by shaders.ts to replace expressions with actual values
+
 @group(${bindGroup_model}) @binding(0) var<uniform> modelMat: mat4x4f;
+@group(${bindGroup_scene}) @binding(0) var<uniform> camUnifs: CameraUniforms;
 
 struct VertexInput
 {
@@ -26,7 +29,7 @@ fn main(in: VertexInput) -> VertexOutput
     let modelPos = modelMat * vec4(in.pos, 1);
 
     var out: VertexOutput;
-    out.fragPos = ??? * modelPos; // TODO-1.3: replace ??? with the view proj mat from your CameraUniforms uniform variable
+    out.fragPos = camUnifs.viewProjMat * modelPos; // TODO-1.3: replace ??? with the view proj mat from your CameraUniforms uniform variable
     out.pos = modelPos.xyz / modelPos.w;
     out.nor = in.nor;
     out.uv = in.uv;
