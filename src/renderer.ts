@@ -7,7 +7,6 @@ export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
 export var context: GPUCanvasContext;
 export var device: GPUDevice;
-export var canvasTextureView: GPUTextureView;
 
 export var aspectRatio: number;
 export const fovYDegrees = 45;
@@ -44,13 +43,15 @@ export async function initWebGPU() {
     device = await adapter.requestDevice();
 
     context = canvas.getContext("webgpu")!;
-    canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    // rgba8unorm supports storage writes without the optional bgra8unorm-storage feature.
+    canvasFormat = "rgba8unorm";
     context.configure({
         device: device,
         format: canvasFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING,
     });
 
-    console.log("WebGPU init successsful");
+    console.log("WebGPU initialized successfully");
 
     modelBindGroupLayout = device.createBindGroupLayout({
         label: "model bind group layout",

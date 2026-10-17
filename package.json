@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --open",
-    "build": "vite build && cp -r scenes/ dist/"
+    "build": "tsc --noEmit && vite build && node -e \"require('node:fs').cpSync('scenes', 'dist/scenes', { recursive: true })\"",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
   },
   "devDependencies": {
     "@types/dat.gui": "^0.7.13",

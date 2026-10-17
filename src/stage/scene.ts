@@ -81,8 +81,8 @@ export class Primitive {
         const indicesByteOffset = (indicesAccessor.byteOffset ?? 0)
             + (indicesBufferView.byteOffset ?? 0)
             + indicesBuffer.byteOffset;
-        let indicesArray: Uint32Array;
-        // hardcoding webgl constants, very silly
+        let indicesArray: Uint32Array<ArrayBuffer>;
+        // glTF index component types use WebGL enum values.
         switch (indicesDataType) {
             case 0x1403: // UNSIGNED_SHORT
                 indicesArray = Uint32Array.from(
@@ -182,7 +182,7 @@ export class Node {
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             });
 
-            device.queue.writeBuffer(this.modelMatUniformBuffer, 0, this.transform);
+            device.queue.writeBuffer(this.modelMatUniformBuffer, 0, new Float32Array(this.transform));
 
             this.modelBindGroup = device.createBindGroup({
                 label: "model bind group",
