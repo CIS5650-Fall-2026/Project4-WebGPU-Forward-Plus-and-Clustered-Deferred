@@ -10,6 +10,7 @@ import { setupLoaders, Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
+import { settings } from './settings';
 
 await initWebGPU();
 setupLoaders();
@@ -52,5 +53,11 @@ function setRenderer(mode: string) {
 const renderModes = { naive: 'naive', forwardPlus: 'forward+', clusteredDeferred: 'clustered deferred' };
 let renderModeController = gui.add({ mode: renderModes.naive }, 'mode', renderModes);
 renderModeController.onChange(setRenderer);
+
+const rebuildRenderer = () => setRenderer(renderModeController.getValue());
+gui.add(settings, 'renderBundles').onChange(rebuildRenderer);
+gui.add(settings, 'depthPrepass').onChange(rebuildRenderer);
+gui.add(settings, 'optimizedGBuffer').onChange(rebuildRenderer);
+gui.add(settings, 'toonShading').onChange(rebuildRenderer);
 
 setRenderer(renderModeController.getValue());

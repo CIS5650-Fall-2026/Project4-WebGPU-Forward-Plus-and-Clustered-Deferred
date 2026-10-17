@@ -8,13 +8,17 @@ import naiveVertRaw from './naive.vs.wgsl?raw';
 import naiveFragRaw from './naive.fs.wgsl?raw';
 
 import forwardPlusFragRaw from './forward_plus.fs.wgsl?raw';
+import depthPrepassFragRaw from './depth_prepass.fs.wgsl?raw';
 
 import clusteredDeferredFragRaw from './clustered_deferred.fs.wgsl?raw';
 import clusteredDeferredFullscreenVertRaw from './clustered_deferred_fullscreen.vs.wgsl?raw';
 import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.fs.wgsl?raw';
+import clusteredDeferredOptimizedFragRaw from './clustered_deferred_optimized.fs.wgsl?raw';
+import clusteredDeferredFullscreenComputeRaw from './clustered_deferred_fullscreen.cs.wgsl?raw';
 
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
+import toonComputeRaw from './toon.cs.wgsl?raw';
 
 // CONSTANTS (for use in shaders)
 // =================================
@@ -30,13 +34,27 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    numClustersX: 16,
+    numClustersY: 9,
+    numClustersZ: 24,
+    maxLightsPerCluster: 1024,
+    clusteringWorkgroupSize: 64,
+    fullscreenWorkgroupSize: 8,
+    nearPlane: Camera.nearPlane,
+    farPlane: Camera.farPlane,
+    clusterNear: 1,
+    clusterFar: 100,
+
+    toonLevels: 5,
+    toonEdgeThreshold: 0.1
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return raw.replace(/\$\{(\w+)\}/g, (_, name: string) => String(constants[name as keyof typeof constants]));
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -49,10 +67,14 @@ export const naiveVertSrc: string = processShaderRaw(naiveVertRaw);
 export const naiveFragSrc: string = processShaderRaw(naiveFragRaw);
 
 export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
+export const depthPrepassFragSrc: string = processShaderRaw(depthPrepassFragRaw);
 
 export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
 export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(clusteredDeferredFullscreenVertRaw);
 export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clusteredDeferredFullscreenFragRaw);
+export const clusteredDeferredOptimizedFragSrc: string = processShaderRaw(clusteredDeferredOptimizedFragRaw);
+export const clusteredDeferredFullscreenComputeSrc: string = processShaderRaw(clusteredDeferredFullscreenComputeRaw);
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
+export const toonComputeSrc: string = processShaderRaw(toonComputeRaw);
