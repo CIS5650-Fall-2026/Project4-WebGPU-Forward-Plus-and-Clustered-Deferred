@@ -1,0 +1,33 @@
+{
+  "scene": "Sponza",
+  "canvasPixels": [
+    2560,
+    1440
+  ],
+  "grid": [
+    16,
+    9,
+    24
+  ],
+  "capacity": 128,
+  "camera": "Default camera; not moved between these captures",
+  "lights": "Frozen animation time; same page session; only active count changed",
+  "browser": "Chromium-based browser on macOS",
+  "interpretation": "Whole-grid cluster statistics, not pixel coverage. Counts are capped at 128. Overflow means more than 128 intersecting lights. Separate session from the earlier rendering benchmarks; no causal attribution of their timing gap.",
+  "snapshots": [
+    {
+      "lightCount": 500,
+      "clusterCount": 3456,
+      "overflow": 0,
+      "maxStored": 73,
+      "capturedAtUTC": "2026-10-17T07:25:35.706Z"
+    },
+    {
+      "lightCount": 1000,
+      "clusterCount": 3456,
+      "overflow": 20,
+      "maxStored": 128,
+      "capturedAtUTC": "2026-10-17T07:26:03.358Z"
+    }
+  ]
+}

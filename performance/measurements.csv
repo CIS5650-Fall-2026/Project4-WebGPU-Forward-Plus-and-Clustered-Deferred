@@ -1,0 +1,27 @@
+cpu_ms,cpu_samples,frozen,gpu_ms,gpu_samples,height,lights,mode,width,run
+--,0,True,216.415,120,1440,500,naive,2560,1
+0.1058,120,True,14.335,120,1440,500,forward+,2560,1
+0.0025,120,True,14.461,120,1440,500,forward+ bundles,2560,1
+--,0,True,13.364,120,1440,500,clustered deferred,2560,1
+--,0,True,11.323,120,1440,500,clustered deferred compute,2560,1
+--,0,True,11.464,120,1440,500,clustered deferred packed,2560,1
+--,0,True,11.636,120,1440,500,clustered deferred bloom,2560,1
+--,0,True,11.519,120,1440,500,clustered deferred bloom,2560,2
+--,0,True,11.450,120,1440,500,clustered deferred packed,2560,2
+--,0,True,11.352,120,1440,500,clustered deferred compute,2560,2
+--,0,True,14.456,120,1440,500,clustered deferred,2560,2
+0.0050,120,True,15.133,120,1440,500,forward+ bundles,2560,2
+0.0958,120,True,15.080,120,1440,500,forward+,2560,2
+0.1725,120,True,8.086,120,1440,100,forward+,2560,1
+--,0,True,11.145,120,1440,100,clustered deferred,2560,1
+--,0,True,7.164,120,1440,100,clustered deferred compute,2560,1
+--,0,True,6.359,120,1440,100,clustered deferred packed,2560,1
+--,0,True,7.521,120,1440,100,clustered deferred bloom,2560,1
+0.0025,120,True,7.721,120,1440,100,forward+ bundles,2560,1
+--,0,True,45.046,120,1440,100,naive,2560,1
+0.3700,120,True,36.155,120,1440,1000,forward+,2560,1
+--,0,True,17.172,120,1440,1000,clustered deferred,2560,1
+--,0,True,15.737,120,1440,1000,clustered deferred compute,2560,1
+--,0,True,15.595,120,1440,1000,clustered deferred packed,2560,1
+--,0,True,15.725,120,1440,1000,clustered deferred bloom,2560,1
+0.0058,120,True,40.208,120,1440,1000,forward+ bundles,2560,1

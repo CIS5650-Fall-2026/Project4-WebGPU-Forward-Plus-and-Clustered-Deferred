@@ -1,0 +1,21 @@
+lights,mode,repeats,gpu_mean_ms,gpu_min_ms,gpu_max_ms,cpu_encode_mean_ms,cpu_encode_min_ms,cpu_encode_max_ms
+100,clustered deferred,1,11.145,11.145,11.145,,,
+100,clustered deferred bloom,1,7.521,7.521,7.521,,,
+100,clustered deferred compute,1,7.164,7.164,7.164,,,
+100,clustered deferred packed,1,6.359,6.359,6.359,,,
+100,forward+,1,8.086,8.086,8.086,0.1725,0.1725,0.1725
+100,forward+ bundles,1,7.721,7.721,7.721,0.0025,0.0025,0.0025
+100,naive,1,45.046,45.046,45.046,,,
+500,clustered deferred,2,13.91,13.364,14.456,,,
+500,clustered deferred bloom,2,11.5775,11.519,11.636,,,
+500,clustered deferred compute,2,11.3375,11.323,11.352,,,
+500,clustered deferred packed,2,11.457,11.45,11.464,,,
+500,forward+,2,14.7075,14.335,15.08,0.1008,0.0958,0.1058
+500,forward+ bundles,2,14.797,14.461,15.133,0.00375,0.0025,0.005
+500,naive,1,216.415,216.415,216.415,,,
+1000,clustered deferred,1,17.172,17.172,17.172,,,
+1000,clustered deferred bloom,1,15.725,15.725,15.725,,,
+1000,clustered deferred compute,1,15.737,15.737,15.737,,,
+1000,clustered deferred packed,1,15.595,15.595,15.595,,,
+1000,forward+,1,36.155,36.155,36.155,0.37,0.37,0.37
+1000,forward+ bundles,1,40.208,40.208,40.208,0.0058,0.0058,0.0058

@@ -2,6 +2,7 @@ import { Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
+import { GpuTimer } from './gpu_timer';
 
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
@@ -41,13 +42,27 @@ export async function initWebGPU() {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    const requiredFeatures: GPUFeatureName[] = [];
+    if (adapter.features.has('timestamp-query')) {
+        requiredFeatures.push('timestamp-query');
+    }
+
+    canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    if (canvasFormat === 'bgra8unorm') {
+        if (adapter.features.has('bgra8unorm-storage')) {
+            requiredFeatures.push('bgra8unorm-storage');
+        } else {
+            canvasFormat = 'rgba8unorm';
+        }
+    }
+
+    device = await adapter.requestDevice({ requiredFeatures });
 
     context = canvas.getContext("webgpu")!;
-    canvasFormat = navigator.gpu.getPreferredCanvasFormat();
     context.configure({
         device: device,
         format: canvasFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING
     });
 
     console.log("WebGPU init successsful");
@@ -107,21 +122,28 @@ export abstract class Renderer {
     protected camera: Camera;
 
     protected stats: Stats;
+    protected timer: GpuTimer;
 
     private prevTime: number = 0;
     private frameRequestId: number;
 
-    constructor(stage: Stage) {
+    constructor(stage: Stage, mode: string, passNames: string[]) {
         this.scene = stage.scene;
         this.lights = stage.lights;
         this.camera = stage.camera;
         this.stats = stage.stats;
+        this.timer = new GpuTimer(device, mode, passNames);
 
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
     }
 
     stop(): void {
         cancelAnimationFrame(this.frameRequestId);
+        this.timer.destroy();
+    }
+
+    measureGpu() {
+        this.timer.reset();
     }
 
     protected abstract draw(): void;
@@ -135,6 +157,15 @@ export abstract class Renderer {
         let deltaTime = time - this.prevTime;
         this.camera.onFrame(deltaTime);
         this.lights.onFrame(time);
+
+        this.timer.beginFrame(JSON.stringify({
+            lights: this.lights.numLights,
+            width: canvas.width,
+            height: canvas.height,
+            frozen: this.lights.freezeLights,
+            camera: this.camera.cameraPos.join(','),
+            direction: this.camera.cameraFront.join(',')
+        }));
 
         this.stats.begin();
 

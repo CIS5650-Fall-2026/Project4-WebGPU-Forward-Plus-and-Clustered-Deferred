@@ -119,7 +119,10 @@ export class Primitive {
             size: indicesArray.byteLength,
             usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
         });
-        device.queue.writeBuffer(this.indexBuffer, 0, indicesArray);
+        device.queue.writeBuffer(
+            this.indexBuffer, 0, indicesArray.buffer,
+            indicesArray.byteOffset, indicesArray.byteLength
+        );
 
         this.vertexBuffer = device.createBuffer({
             label: "vertex buffer",
@@ -182,7 +185,10 @@ export class Node {
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
             });
 
-            device.queue.writeBuffer(this.modelMatUniformBuffer, 0, this.transform);
+            device.queue.writeBuffer(
+                this.modelMatUniformBuffer, 0, this.transform.buffer,
+                this.transform.byteOffset, this.transform.byteLength
+            );
 
             this.modelBindGroup = device.createBindGroup({
                 label: "model bind group",
