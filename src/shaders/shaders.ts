@@ -10,33 +10,58 @@ import naiveFragRaw from './naive.fs.wgsl?raw';
 import forwardPlusFragRaw from './forward_plus.fs.wgsl?raw';
 
 import clusteredDeferredFragRaw from './clustered_deferred.fs.wgsl?raw';
-import clusteredDeferredFullscreenVertRaw from './clustered_deferred_fullscreen.vs.wgsl?raw';
-import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.fs.wgsl?raw';
+import clusteredDeferredShadingRaw from './clustered_deferred_shading.cs.wgsl?raw';
+
+import depthPrepassFragRaw from './depth_prepass.fs.wgsl?raw';
+import clusterClearComputeRaw from './cluster_clear.cs.wgsl?raw';
+import clusterMarkComputeRaw from './cluster_mark.cs.wgsl?raw';
 
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
 
-// CONSTANTS (for use in shaders)
+import clusterDebugFragRaw from './cluster_debug.fs.wgsl?raw';
+
+// CONSTANTS FOR SHADERS
 // =================================
 
-// CHECKITOUT: feel free to add more constants here and to refer to them in your shader code
-
-// Note that these are declared in a somewhat roundabout way because otherwise minification will drop variables
-// that are unused in host side code.
 export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    bindGroup_gbuffer: 1, // the G-buffer textures the Clustered Deferred shading pass reads
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // light clustering
+    clusteringWorkgroupSize: 64,
+    screenWorkgroupSize: 8,
+    clusterClearWorkgroupSize: 64,
+    numClusterTilesX: 16,
+    numClusterTilesY: 16,
+    numClusterZ: 24,
+    numClusters: 16 * 16 * 24,
+    maxLightsPerCluster: 512,
+
+    // camera planes
+    clusterNear: Camera.nearPlane,
+    clusterFar: 100,
+    cameraNear: Camera.nearPlane,
+    cameraFar: Camera.farPlane
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    // replace ${name} with the value of constants.name
+    return raw.replace(/\$\{(\w+)\}/g, (_, name: string) => {
+        const value = (constants as Record<string, unknown>)[name];
+        if (value === undefined) {
+            throw new Error(`unknown shader constant: ${name}`);
+        }
+        return String(value);
+    });
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -51,8 +76,13 @@ export const naiveFragSrc: string = processShaderRaw(naiveFragRaw);
 export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
 
 export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
-export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(clusteredDeferredFullscreenVertRaw);
-export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clusteredDeferredFullscreenFragRaw);
+export const clusteredDeferredShadingSrc: string = processShaderRaw(clusteredDeferredShadingRaw);
+
+export const depthPrepassFragSrc: string = processShaderRaw(depthPrepassFragRaw);
+export const clusterClearComputeSrc: string = processShaderRaw(clusterClearComputeRaw);
+export const clusterMarkComputeSrc: string = processShaderRaw(clusterMarkComputeRaw);
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
+
+export const clusterDebugFragSrc: string = processShaderRaw(clusterDebugFragRaw);
