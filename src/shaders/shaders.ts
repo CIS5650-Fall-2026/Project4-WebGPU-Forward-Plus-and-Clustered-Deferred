@@ -8,6 +8,7 @@ import naiveVertRaw from './naive.vs.wgsl?raw';
 import naiveFragRaw from './naive.fs.wgsl?raw';
 
 import forwardPlusFragRaw from './forward_plus.fs.wgsl?raw';
+import depthPrepassFragRaw from './depth_prepass.fs.wgsl?raw';
 
 import clusteredDeferredFragRaw from './clustered_deferred.fs.wgsl?raw';
 import clusteredDeferredFullscreenVertRaw from './clustered_deferred_fullscreen.vs.wgsl?raw';
@@ -30,10 +31,21 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
+    clusterX: 32,
+    clusterY: 18,
+    clusterZ: 24,
+    maxLightsPerCluster: 512,
+    clusterFar: 50, // depth where the exponential Z slicing ends (last slice extends to the camera far plane)
+    clusteringWorkgroupSize: 64,
+
     lightRadius: 2
 };
 
 // =================================
+
+// Keep every key: most constants are only read inside the eval()'d shader strings below,
+// so the production bundler would otherwise tree-shake them away (e.g. lightRadius -> undefined).
+(globalThis as any).__shaderConstants = constants;
 
 function evalShaderRaw(raw: string) {
     return eval('`' + raw.replaceAll('${', '${constants.') + '`');
@@ -49,6 +61,7 @@ export const naiveVertSrc: string = processShaderRaw(naiveVertRaw);
 export const naiveFragSrc: string = processShaderRaw(naiveFragRaw);
 
 export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
+export const depthPrepassFragSrc: string = processShaderRaw(depthPrepassFragRaw);
 
 export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
 export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(clusteredDeferredFullscreenVertRaw);
