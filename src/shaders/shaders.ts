@@ -1,7 +1,5 @@
 // CHECKITOUT: this file loads all the shaders and preprocesses them with some common code
 
-import { Camera } from '../stage/camera';
-
 import commonRaw from './common.wgsl?raw';
 
 import naiveVertRaw from './naive.vs.wgsl?raw';
@@ -16,6 +14,8 @@ import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.
 
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
+import clusterAssignmentComputeRaw from './cluster_assignment.cs.wgsl?raw';
+import clusterCompactionComputeRaw from './cluster_compaction.cs.wgsl?raw';
 
 // CONSTANTS (for use in shaders)
 // =================================
@@ -33,13 +33,29 @@ export const constants = {
 
     lightRadius: 2,
 
-    tileSize: 16,
+    clusterWorkgroupSize: 64,
+    clusterAssignmentWorkgroupSize: 8,
+    clusterCountX: 32,
+    clusterCountY: 18,
+    clusterCountZ: 24,
+    maxLightsPerCluster: 128,
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+function evalShaderRaw(raw: string): string {
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -60,3 +76,5 @@ export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clust
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
+export const clusterAssignmentComputeSrc: string = processShaderRaw(clusterAssignmentComputeRaw);
+export const clusterCompactionComputeSrc: string = processShaderRaw(clusterCompactionComputeRaw);

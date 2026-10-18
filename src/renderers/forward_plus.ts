@@ -3,8 +3,6 @@ import * as shaders from '../shaders/shaders';
 import { Stage } from '../stage/stage';
 
 export class ForwardPlusRenderer extends renderer.Renderer {
-    // TODO-2: add layouts, pipelines, textures, etc. needed for Forward+ here
-    // you may need extra uniforms such as the camera view matrix and the canvas resolution
     sceneBindGroupLayout: GPUBindGroupLayout;
     sceneBindGroup: GPUBindGroup;
 
@@ -17,34 +15,58 @@ export class ForwardPlusRenderer extends renderer.Renderer {
     constructor(stage: Stage) {
         super(stage);
 
-        // TODO-2: initialize layouts, pipelines, textures, etc. needed for Forward+ here
-
         this.sceneBindGroupLayout =
         renderer.device.createBindGroupLayout({
             label: "forward+ scene layout",
-            entries: [{
-                binding: 0,
-                visibility: GPUShaderStage.VERTEX,
-                buffer: { type: "uniform" }
-            }]
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                    buffer: { type: "uniform" }
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: "read-only-storage" }
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: "read-only-storage" }
+                },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: { type: "read-only-storage" }
+                },
+            ]
         });
 
         this.sceneBindGroup = renderer.device.createBindGroup({
             label: "forward+ scene bind group",
             layout: this.sceneBindGroupLayout,
-            entries: [{
-                binding: 0,
-                resource: { buffer: this.camera.uniformsBuffer }
-            }]
+            entries: [
+                {
+                    binding: 0,
+                    resource: { buffer: this.camera.uniformsBuffer }
+                },
+                {
+                    binding: 1,
+                    resource: { buffer: this.lights.lightSetStorageBuffer }
+                },
+                {
+                    binding: 2,
+                    resource: { buffer: this.lights.clusterLightListsStorageBuffer }
+                },
+                { binding: 3, resource: { buffer: this.lights.pixelClustersStorageBuffer } },
+            ]
         });
 
         this.depthTexture = renderer.device.createTexture({
             label: "forward+ depth texture",
             size: [renderer.canvas.width, renderer.canvas.height],
             format: "depth24plus",
-            usage:
-                GPUTextureUsage.RENDER_ATTACHMENT |
-                GPUTextureUsage.TEXTURE_BINDING
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
         });
         this.depthTextureView = this.depthTexture.createView();
 
@@ -103,24 +125,17 @@ export class ForwardPlusRenderer extends renderer.Renderer {
                     label: "naive frag shader",
                     code: shaders.forwardPlusFragSrc
                 }),
-                targets: [
-                    {
-                        format: renderer.canvasFormat,
-                    }
-                ]
+                targets: [{ format: renderer.canvasFormat }]
             }
         });
     }
 
     override draw() {
-        // TODO-2: run the Forward+ rendering pass:
-        // - run the clustering compute shader
-        // - run the main rendering pass, using the computed clusters for efficient lighting
-
         const encoder = renderer.device.createCommandEncoder();
 
+        //depth pass
         const zPass = encoder.beginRenderPass({
-            label: "naive render pass",
+            label: "0. forward+ depth pre-pass",
             colorAttachments: [],
             depthStencilAttachment: {
                 view: this.depthTextureView,
@@ -134,9 +149,12 @@ export class ForwardPlusRenderer extends renderer.Renderer {
         this.drawScene(zPass);
         zPass.end();
 
+        this.lights.doLightClustering(encoder, this.depthTextureView);
+
+        //color pass
         const canvasTextureView = renderer.context.getCurrentTexture().createView();
         const colorPass = encoder.beginRenderPass({
-            label: "naive render pass",
+            label: "forward+ color pass",
             colorAttachments: [
                 {
                     view: canvasTextureView,

@@ -109,7 +109,13 @@ export abstract class Renderer {
     protected stats: Stats;
 
     private prevTime: number = 0;
-    private frameRequestId: number;
+    private readonly frameChannel = new MessageChannel();
+    private running = true;
+    private framePending = false;
+    private readonly onVisibilityChange = () => {
+        this.prevTime = 0;
+        this.scheduleFrame();
+    };
 
     constructor(stage: Stage) {
         this.scene = stage.scene;
@@ -117,32 +123,53 @@ export abstract class Renderer {
         this.camera = stage.camera;
         this.stats = stage.stats;
 
-        this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+        this.frameChannel.port1.onmessage = () => { void this.onFrame(); };
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
+        this.scheduleFrame();
     }
 
     stop(): void {
-        cancelAnimationFrame(this.frameRequestId);
+        this.running = false;
+        document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        this.frameChannel.port1.close();
+        this.frameChannel.port2.close();
     }
 
     protected abstract draw(): void;
 
-    // CHECKITOUT: this is the main rendering loop
-    private onFrame(time: number) {
-        if (this.prevTime == 0) {
-            this.prevTime = time;
+    private scheduleFrame() {
+        if (!this.running || this.framePending || document.hidden) return;
+        this.framePending = true;
+        // A separate task yields to input and canvas presentation without waiting
+        // for requestAnimationFrame's display-refresh pacing or timer clamping.
+        this.frameChannel.port2.postMessage(null);
+    }
+
+    private async onFrame() {
+        if (!this.running || document.hidden) {
+            this.framePending = false;
+            return;
         }
 
-        let deltaTime = time - this.prevTime;
-        this.camera.onFrame(deltaTime);
-        this.lights.onFrame(time);
+        try {
+            const time = performance.now();
+            const deltaTime = this.prevTime === 0 ? 0 : time - this.prevTime;
+            this.prevTime = time;
+            this.camera.onFrame(deltaTime);
+            this.lights.onFrame(time);
 
-        this.stats.begin();
-
-        this.draw();
-
-        this.stats.end();
-
-        this.prevTime = time;
-        this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+            this.stats.begin();
+            this.draw();
+            // Bound outstanding GPU work instead of accumulating an unlimited
+            // command backlog. FPS counts completed renders, not submissions.
+            await device.queue.onSubmittedWorkDone();
+            if (this.running) this.stats.end();
+        } catch (error) {
+            console.error('Renderer stopped after a rendering error:', error);
+            this.stop();
+        } finally {
+            this.framePending = false;
+            this.scheduleFrame();
+        }
     }
 }
