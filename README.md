@@ -19,6 +19,11 @@ WebGPU Forward+ and Clustered Deferred Shading
 
 
 
+https://github.com/user-attachments/assets/a37a8f2e-fa9b-440a-9692-f5e8c03494b6
+
+
+
+
 ## Features
 
 This is a real-time renderer built with WebGPU, TypeScript, and WGSL. It implements Naive Forward, Forward+, and Clustered Deferred rendering in the Sponza scene, with animated point lights and interactive controls for switching between renderers and adjusting the light count.
