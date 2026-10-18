@@ -30,13 +30,25 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    numClustersX: 32,
+    numClustersY: 18,
+    numClustersZ: 48,
+    maxLightsPerCluster: 511
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    // Fixes production website loading only black screen's 
+    // Error while parsing WGSL: :38:39 error: unresolved value 'undefined'
+    return raw.replace(/\$\{([A-Za-z0-9_]+)\}/g, (_match, name: string) => {
+        if (!(name in constants)) {
+            throw new Error(`Unknown shader constant "${name}"`);
+        }
+        return String(constants[name as keyof typeof constants]);
+    });
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);

@@ -1,3 +1,5 @@
+import Stats from 'stats.js';
+
 import { Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
@@ -14,6 +16,24 @@ export const fovYDegrees = 45;
 
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
+
+const frameMsPanels = new WeakMap<Stats, Stats.Panel>();
+
+// stats.js rewrites its built-in MS panel on every end() call. Swap in our own panel
+// so that readout can be the one-second average instead of the last frame.
+function frameMsPanelFor(stats: Stats): Stats.Panel {
+    const existing = frameMsPanels.get(stats);
+    if (existing) {
+        return existing;
+    }
+
+    const panel = new Stats.Panel('MS', '#0f0', '#020');
+    const builtin = stats.dom.children[1] as HTMLElement;
+    panel.dom.style.display = builtin.style.display;
+    stats.dom.replaceChild(panel.dom, builtin);
+    frameMsPanels.set(stats, panel);
+    return panel;
+}
 
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
@@ -110,12 +130,19 @@ export abstract class Renderer {
 
     private prevTime: number = 0;
     private frameRequestId: number;
+    private frameOpen = false;
+    private frameBegin = 0;
+    private frameMsSum = 0;
+    private frameMsCount = 0;
+    private frameMsWindowStart = 0;
+    private frameMsPanel: Stats.Panel;
 
     constructor(stage: Stage) {
         this.scene = stage.scene;
         this.lights = stage.lights;
         this.camera = stage.camera;
         this.stats = stage.stats;
+        this.frameMsPanel = frameMsPanelFor(stage.stats);
 
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
     }
@@ -128,6 +155,27 @@ export abstract class Renderer {
 
     // CHECKITOUT: this is the main rendering loop
     private onFrame(time: number) {
+        // draw() returns after submitting GPU work, so timing only that call stays near 0 ms
+        // while the GPU is still shading. Sample the time until the next frame, then show
+        // the average of those samples over the same one-second bucket the FPS counter uses.
+        const now = performance.now();
+        if (this.frameOpen) {
+            this.stats.end();
+            this.frameMsSum += now - this.frameBegin;
+            this.frameMsCount++;
+            if (now >= this.frameMsWindowStart + 1000) {
+                this.frameMsPanel.update(this.frameMsSum / this.frameMsCount, 200);
+                this.frameMsSum = 0;
+                this.frameMsCount = 0;
+                this.frameMsWindowStart = now;
+            }
+        } else {
+            this.frameMsWindowStart = now;
+        }
+        this.stats.begin();
+        this.frameBegin = now;
+        this.frameOpen = true;
+
         if (this.prevTime == 0) {
             this.prevTime = time;
         }
@@ -136,11 +184,7 @@ export abstract class Renderer {
         this.camera.onFrame(deltaTime);
         this.lights.onFrame(time);
 
-        this.stats.begin();
-
         this.draw();
-
-        this.stats.end();
 
         this.prevTime = time;
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
