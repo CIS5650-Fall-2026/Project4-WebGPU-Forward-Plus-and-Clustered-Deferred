@@ -1,5 +1,9 @@
 @group(${bindGroup_scene}) @binding(0) var<storage, read_write> lightSet: LightSet;
 @group(${bindGroup_scene}) @binding(1) var<uniform> time: f32;
+@group(${bindGroup_scene}) @binding(2) var<uniform> camUniforms: CameraUniforms;
+@group(${bindGroup_scene}) @binding(3) var<uniform> screenHeight: f32;
+@group(${bindGroup_scene}) @binding(4) var<uniform> screenWidth: f32;
+@group(${bindGroup_scene}) @binding(5) var<uniform> lightRadius: f32;
 
 // https://gist.github.com/munrocket/236ed5ba7e409b8bdf1ff6eca5dcdc39
 // MIT License. © Stefan Gustavson, Munrocket
@@ -44,6 +48,13 @@ fn perlin3(lightIdx: u32, scaledTime: f32) -> vec3f {
     return vec3f(perlin(seedPos), perlin(seedPos + 110.93), perlin(seedPos + 350.51));
 }
 
+fn worldToScreen(position: vec3f) -> vec2f {
+    let calculatedFrag = camUniforms.viewProjMat * vec4(position, 1);
+    let adjustedCalculatedFrag = calculatedFrag /calculatedFrag.w; 
+    let zeroToOneCorrectCorner = vec2((adjustedCalculatedFrag.x + 1)/2, 1 - ((adjustedCalculatedFrag.y+1)/2));
+    return vec2(zeroToOneCorrectCorner.x*screenWidth, zeroToOneCorrectCorner.y*screenHeight);
+}
+
 const bboxMin = vec3f(-10, 0, -5);
 const bboxMax = vec3f(10, 8, 5);
 
@@ -62,5 +73,14 @@ fn main(@builtin(global_invocation_id) globalIdx: vec3u) {
     // perlin noise rarely reaches the extremes (-1 and 1), so scale accordingly here to ensure lights reach
     // the bounding box's sides
     let scaledNoise = (noise + 0.5) * 0.8;
-    lightSet.lights[lightIdx].pos = mix(bboxMin, bboxMax, scaledNoise);
+    let lightPos = mix(bboxMin, bboxMax, scaledNoise);
+    lightSet.lights[lightIdx].pos = lightPos;
+    // calculate light screen pos
+    let lightScreenPos = worldToScreen(lightPos);
+    lightSet.lights[lightIdx].screenPos = lightScreenPos;
+    let lightRadiusPos = vec3f(lightPos.x + lightRadius, lightPos.y, lightPos.z);
+    let lightRadiusScreenPos = worldToScreen(lightRadiusPos);
+    lightSet.lights[lightIdx].screenRadius = distance(lightScreenPos, lightRadiusScreenPos);
+    // calculate depth from camera here (least total calculations if done here) 
+    lightSet.lights[lightIdx].depthFromCam = distance(lightPos.xyz, camUniforms.pos);
 }
