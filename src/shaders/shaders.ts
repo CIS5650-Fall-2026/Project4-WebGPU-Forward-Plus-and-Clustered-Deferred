@@ -38,7 +38,9 @@ export const constants = {
     clusterCountX: 32,
     clusterCountY: 18,
     clusterCountZ: 24,
-    maxLightsPerCluster: 128,
+    maxLightsPerCluster: 256,
+    // true: overflowing clusters shade all scene lights; false: enforce the cap.
+    clusterOverflowFallback: true,
 };
 
 // =================================

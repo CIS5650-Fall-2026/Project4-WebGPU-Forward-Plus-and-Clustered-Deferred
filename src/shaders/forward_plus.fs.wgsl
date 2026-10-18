@@ -48,7 +48,7 @@ fn main(in: FragmentInput) -> @location(0) vec4f {
     if (clusterIdx == INVALID_CLUSTER) {
         return vec4f(0.f);
     }
-    let overflow = clusterSet.clusters[clusterIdx].header.y != 0u;
+    let overflow = ${clusterOverflowFallback} && clusterSet.clusters[clusterIdx].header.y != 0u;
     let numLights = select(clusterSet.clusters[clusterIdx].header.x, lightSet.numLights, overflow);
 
     // loop over lights in cluster

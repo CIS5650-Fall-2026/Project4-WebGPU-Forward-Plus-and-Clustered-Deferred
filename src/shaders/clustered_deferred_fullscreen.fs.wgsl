@@ -28,7 +28,7 @@ fn main(@builtin(position) fragPos: vec4f) -> @location(0) vec4f
     if (clusterIndex == INVALID_CLUSTER) {
         return vec4f(0.f);
     }
-    let overflow = clusterSet.clusters[clusterIndex].header.y != 0u;
+    let overflow = ${clusterOverflowFallback} && clusterSet.clusters[clusterIndex].header.y != 0u;
     let numLights = select(clusterSet.clusters[clusterIndex].header.x, lightSet.numLights, overflow);
 
     var totalLight = vec3f(0.f);

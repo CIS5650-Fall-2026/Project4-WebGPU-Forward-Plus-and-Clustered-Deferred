@@ -81,12 +81,16 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 
         if (intersectsCluster) {
             if (intersectingLightCount == ${maxLightsPerCluster}u) {
-                // Shading falls back to all lights instead of silently losing light.
+                // With fallback enabled, finding one extra light flags overflow.
                 overflow = 1u;
                 break;
             }
             clusterSet.clusters[clusterIdx].lightIndices[intersectingLightCount] = lightIdx;
             intersectingLightCount++;
+            if (!${clusterOverflowFallback} && intersectingLightCount == ${maxLightsPerCluster}u) {
+                // No overflow detection is needed when shading has a hard cap.
+                break;
+            }
         }
     }
 
