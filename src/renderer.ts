@@ -44,10 +44,15 @@ export async function initWebGPU() {
     device = await adapter.requestDevice();
 
     context = canvas.getContext("webgpu")!;
-    canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+
+    // change canvasFormat to rgba8unorm.
+    // compute shaders write using storage textures, and by replacing fullscreen pass
+    // with a single compute shader, we can skip vertex shader/rasterizer
+    canvasFormat = "rgba8unorm";
     context.configure({
         device: device,
         format: canvasFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.STORAGE_BINDING
     });
 
     console.log("WebGPU init successsful");

@@ -12,6 +12,8 @@ import forwardPlusFragRaw from './forward_plus.fs.wgsl?raw';
 import clusteredDeferredFragRaw from './clustered_deferred.fs.wgsl?raw';
 import clusteredDeferredFullscreenVertRaw from './clustered_deferred_fullscreen.vs.wgsl?raw';
 import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.fs.wgsl?raw';
+import clusteredDeferredLightingComputeRaw from './clustered_deferred_lighting.cs.wgsl?raw';
+import toonPostComputeRaw from './toon_post_processing.cs.wgsl?raw';
 
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
@@ -30,13 +32,37 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // Building a grid for clustering
+    clusterCountX: 16,
+    clusterCountY: 9,
+    clusterCountZ: 24,
+
+    // you can adjust this value to be higher, especially if you see a tiling effect.
+    // the tiling effect lightly occurs when the clusters overflow
+    // (like doing 2000+ lights with <300 lights per cluster)
+    // this might cost some memory and make things slightly slower
+    maxLightsInCluster: 1024,
+    clusteringGroupSize: [4, 4, 4]
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+function evalShaderRaw(raw: string): string {
+    // approved TA fix for renderer working on local server but not on pages
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -53,6 +79,8 @@ export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
 export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
 export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(clusteredDeferredFullscreenVertRaw);
 export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clusteredDeferredFullscreenFragRaw);
+export const clusteredDeferredLightingComputeSrc: string = processShaderRaw(clusteredDeferredLightingComputeRaw);
+export const toonPostComputeSrc: string = processShaderRaw(toonPostComputeRaw);
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
