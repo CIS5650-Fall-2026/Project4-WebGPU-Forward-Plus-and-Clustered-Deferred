@@ -10,6 +10,7 @@ WebGL Forward+ and Clustered Deferred Shading
 [https://rayyanshaik2022.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred/](https://rayyanshaik2022.github.io/Project4-WebGPU-Forward-Plus-and-Clustered-Deferred/)
 ### Demo Video/GIF
 
+https://github.com/user-attachments/assets/a53e8ede-b8d5-4227-9f70-59113ff3e9e4
 ![/static/forward_cluster_demo](/static/forward_cluster_demo_trim_480.mp4)
 
 ### Overview
