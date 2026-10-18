@@ -19,10 +19,17 @@ import clusteringComputeRaw from './clustering.cs.wgsl?raw';
 // CONSTANTS (for use in shaders)
 // =================================
 
+
 // CHECKITOUT: feel free to add more constants here and to refer to them in your shader code
 
 // Note that these are declared in a somewhat roundabout way because otherwise minification will drop variables
 // that are unused in host side code.
+
+// Defined initially outside so that totalClusters can use these vals
+const numClustersX = 16;
+const numClustersY =  9;
+const numClustersZ = 24;
+
 export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
@@ -30,7 +37,20 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    // 16x9 nearplane/screen aspect ratio -> depth is more easily configurable here
+    numClustersX,
+    numClustersY,
+    numClustersZ,
+    totalClusters:  numClustersX * numClustersY * numClustersZ,
+
+    maxLightsPerCluster: 1024,
+    clusteringWorkgroupSize: 64,
+
+    // For converting later
+    nearPlane: Camera.nearPlane,
+    farPlane: Camera.farPlane
 };
 
 // =================================
