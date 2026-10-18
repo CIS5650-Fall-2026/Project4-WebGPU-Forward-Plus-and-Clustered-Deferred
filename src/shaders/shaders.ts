@@ -30,13 +30,33 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    clustersX: 16,
+    clustersY: 16,
+    clustersZ: 16,
+    clusterWorkgroupSize: 128,
+    lightsClusterCapacity: 5000,
+    
+    nearPlane: Camera.nearPlane,
+    farPlane: Camera.farPlane,
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+function evalShaderRaw(raw: string): string {
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);

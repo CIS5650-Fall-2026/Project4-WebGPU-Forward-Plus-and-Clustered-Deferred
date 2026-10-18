@@ -22,6 +22,11 @@ export class NaiveRenderer extends renderer.Renderer {
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
                     buffer: { type: "read-only-storage" }
+                },
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "uniform" }
                 }
             ]
         });
@@ -36,6 +41,10 @@ export class NaiveRenderer extends renderer.Renderer {
                 {
                     binding: 1,
                     resource: { buffer: this.lights.lightSetStorageBuffer }
+                },
+                {
+                    binding: 0,
+                    resource: { buffer: this.camera.uniformsBuffer }
                 }
             ]
         });
@@ -106,6 +115,7 @@ export class NaiveRenderer extends renderer.Renderer {
         renderPass.setPipeline(this.pipeline);
 
         // TODO-1.2: bind `this.sceneUniformsBindGroup` to index `shaders.constants.bindGroup_scene`
+        renderPass.setBindGroup(shaders.constants.bindGroup_scene, this.sceneUniformsBindGroup);
 
         this.scene.iterate(node => {
             renderPass.setBindGroup(shaders.constants.bindGroup_model, node.modelBindGroup);
