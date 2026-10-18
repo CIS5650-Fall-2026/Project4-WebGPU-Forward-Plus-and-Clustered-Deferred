@@ -1,11 +1,10 @@
 // CHECKITOUT: this file loads all the shaders and preprocesses them with some common code
 
-import { Camera } from '../stage/camera';
-
 import commonRaw from './common.wgsl?raw';
 
 import naiveVertRaw from './naive.vs.wgsl?raw';
 import naiveFragRaw from './naive.fs.wgsl?raw';
+import zPrepassFragRaw from './z_prepass.fs.wgsl?raw';
 
 import forwardPlusFragRaw from './forward_plus.fs.wgsl?raw';
 
@@ -15,6 +14,8 @@ import clusteredDeferredFullscreenFragRaw from './clustered_deferred_fullscreen.
 
 import moveLightsComputeRaw from './move_lights.cs.wgsl?raw';
 import clusteringComputeRaw from './clustering.cs.wgsl?raw';
+import clusterAssignmentComputeRaw from './cluster_assignment.cs.wgsl?raw';
+import clusterCompactionComputeRaw from './cluster_compaction.cs.wgsl?raw';
 
 // CONSTANTS (for use in shaders)
 // =================================
@@ -30,13 +31,33 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2,
+
+    clusterWorkgroupSize: 64,
+    clusterAssignmentWorkgroupSize: 8,
+    clusterCountX: 32,
+    clusterCountY: 18,
+    clusterCountZ: 24,
+    maxLightsPerCluster: 256,
+    // true: overflowing clusters shade all scene lights; false: enforce the cap.
+    clusterOverflowFallback: true,
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+function evalShaderRaw(raw: string): string {
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
@@ -49,6 +70,7 @@ export const naiveVertSrc: string = processShaderRaw(naiveVertRaw);
 export const naiveFragSrc: string = processShaderRaw(naiveFragRaw);
 
 export const forwardPlusFragSrc: string = processShaderRaw(forwardPlusFragRaw);
+export const zPrepassFragSrc = processShaderRaw(zPrepassFragRaw);
 
 export const clusteredDeferredFragSrc: string = processShaderRaw(clusteredDeferredFragRaw);
 export const clusteredDeferredFullscreenVertSrc: string = processShaderRaw(clusteredDeferredFullscreenVertRaw);
@@ -56,3 +78,5 @@ export const clusteredDeferredFullscreenFragSrc: string = processShaderRaw(clust
 
 export const moveLightsComputeSrc: string = processShaderRaw(moveLightsComputeRaw);
 export const clusteringComputeSrc: string = processShaderRaw(clusteringComputeRaw);
+export const clusterAssignmentComputeSrc: string = processShaderRaw(clusterAssignmentComputeRaw);
+export const clusterCompactionComputeSrc: string = processShaderRaw(clusterCompactionComputeRaw);
