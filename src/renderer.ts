@@ -101,6 +101,37 @@ export const vertexBufferLayout: GPUVertexBufferLayout = {
     ]
 };
 
+// ---------------------------------------------------------------------------
+// GPU frame timer (measurement tool, not part of the renderers)
+// Measures the time from just before draw() until the GPU reports that all
+// submitted work is finished (device.queue.onSubmittedWorkDone). This is not
+// affected by vsync, unlike FPS. Averaged over the last `gpuTimerWindow` frames.
+// ---------------------------------------------------------------------------
+const gpuTimerWindow = 60;
+const gpuTimerSamples: number[] = [];
+let gpuTimerPending = false;
+let gpuTimerElement: HTMLDivElement | undefined;
+
+function showGpuTime(ms: number) {
+    if (!gpuTimerElement) {
+        gpuTimerElement = document.createElement("div");
+        gpuTimerElement.style.cssText =
+            "position:fixed;top:56px;left:0;padding:4px 8px;font:12px monospace;" +
+            "color:#0f0;background:rgba(0,0,0,0.7);z-index:10000;pointer-events:none;";
+        document.body.appendChild(gpuTimerElement);
+    }
+    gpuTimerElement.textContent = `GPU frame: ${ms.toFixed(2)} ms (avg ${gpuTimerSamples.length})`;
+}
+
+export function getAverageGpuFrameTime(): number {
+    if (gpuTimerSamples.length === 0) return 0;
+    return gpuTimerSamples.reduce((a, b) => a + b, 0) / gpuTimerSamples.length;
+}
+
+export function resetGpuTimer() {
+    gpuTimerSamples.length = 0;
+}
+
 export abstract class Renderer {
     protected scene: Scene;
     protected lights: Lights;
@@ -118,6 +149,8 @@ export abstract class Renderer {
         this.stats = stage.stats;
 
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+
+        resetGpuTimer();   // new renderer → start a fresh average
     }
 
     stop(): void {
@@ -138,7 +171,24 @@ export abstract class Renderer {
 
         this.stats.begin();
 
+        // only start a new measurement when the previous one has finished,
+        // so each sample covers exactly one frame's GPU work
+        const measure = !gpuTimerPending;
+        const t0 = performance.now();
+
         this.draw();
+
+        if (measure) {
+            gpuTimerPending = true;
+            device.queue.onSubmittedWorkDone().then(() => {
+                gpuTimerSamples.push(performance.now() - t0);
+                if (gpuTimerSamples.length > gpuTimerWindow) {
+                    gpuTimerSamples.shift();
+                }
+                gpuTimerPending = false;
+                showGpuTime(getAverageGpuFrameTime());
+            });
+        }
 
         this.stats.end();
 
