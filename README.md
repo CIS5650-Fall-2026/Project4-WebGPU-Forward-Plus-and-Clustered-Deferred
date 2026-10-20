@@ -3,7 +3,7 @@ WebGPU Forward+ and Clustered Deferred Shading
 
 University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 4
 
-* Anna Dai <!-- TODO:  add LinkedIn or personal site -->
+* Anna Dai [LinkedIn](www.linkedin.com/in/nanru-dai-8b33a9261) [Personal website](https://annaaaddddd.github.io/)
 * Tested on: Google Chrome 155.0.8059.39 on
   Windows 11 Home, AMD Ryzen 9 5950X (16 cores) 128 GB, NVIDIA GeForce RTX 3090 Ti (driver 32.0.16.1656)
 
