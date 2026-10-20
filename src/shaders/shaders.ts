@@ -27,16 +27,33 @@ export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    bindGroup_gbuffer: 1,
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    // clusterLightsWorkgroupSize: 128,
+    clusterLightsWorkgroupSizeX: 4,
+    clusterLightsWorkgroupSizeY: 4,
+    clusterLightsWorkgroupSizeZ: 4,
+
+    lightRadius: 2,
+
+    maxLightsPerCluster: 256,
+    xClusterCnt: 32,
+    yClusterCnt: 32,
+    zClusterCnt: 32,
+
+    cluster_far_clip: 100, // temporarily override camera.farClip
+    logSlicing: 0, // z slicing: 0 = linear, 1 = log
+
+    // forward+ debug view: 0 = off, 1 = cluster index, 2 = light count, 3 = full clusters in red
+    debugView: 0
 };
 
 // =================================
 
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    return raw.replace(/\$\{(\w+)\}/g, (_, key) => String((constants as any)[key]));
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
