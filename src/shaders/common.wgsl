@@ -10,10 +10,23 @@ struct LightSet {
     lights: array<Light>
 }
 
-// TODO-2: you may want to create a ClusterSet struct similar to LightSet
+struct Cluster {
+    numLights: u32,
+    lightIndices: array<u32, ${maxLightsPerCluster}>
+}
+
+struct ClusterSet {
+    clusters: array<Cluster, ${numClusters}>
+}
 
 struct CameraUniforms {
-    // TODO-1.3: add an entry for the view proj mat (of type mat4x4f)
+    viewProj: mat4x4f,
+    viewMat: mat4x4f,
+    inverseProjMat: mat4x4f,
+    screenWidth: f32,
+    screenHeight: f32,
+    nearPlane: f32,
+    farPlane: f32
 }
 
 // CHECKITOUT: this special attenuation function ensures lights don't affect geometry outside the maximum light radius
@@ -27,4 +40,23 @@ fn calculateLightContrib(light: Light, posWorld: vec3f, nor: vec3f) -> vec3f {
 
     let lambert = max(dot(nor, normalize(vecToLight)), 0.f);
     return light.color * lambert * rangeAttenuation(distToLight);
+}
+
+fn aabbLightIntersection(lightCenter: vec3f, aabbMin: vec3f, aabbMax: vec3f) -> bool {
+    let closestPoint = clamp(lightCenter, aabbMin, aabbMax);
+
+    let distanceToCenterSquared = dot(closestPoint - lightCenter, closestPoint - lightCenter);
+    let lightRadiusSquared = f32(${lightRadius}) * f32(${lightRadius});
+
+    return distanceToCenterSquared < lightRadiusSquared;
+}
+
+// pseudo-random color from an integer id
+fn hashColor(id: u32) -> vec3f {
+    let f = f32(id);
+    return vec3f(
+        fract(sin(f * 12.9898) * 43758.5453),
+        fract(sin(f * 78.233) * 24634.6345),
+        fract(sin(f * 39.346) * 31415.9265)
+    );
 }
