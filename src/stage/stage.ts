@@ -8,6 +8,8 @@ export class Stage {
     camera: Camera;
     stats: Stats;
 
+    debugView: number = 0;
+
     constructor(scene: Scene, lights: Lights, camera: Camera, stats: Stats) {
         this.scene = scene;
         this.lights = lights;

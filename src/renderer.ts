@@ -52,6 +52,7 @@ export async function initWebGPU() {
 
     console.log("WebGPU init successsful");
 
+    // shared by all renderers
     modelBindGroupLayout = device.createBindGroupLayout({
         label: "model bind group layout",
         entries: [
@@ -63,6 +64,7 @@ export async function initWebGPU() {
         ]
     });
 
+    // shared by all renderers
     materialBindGroupLayout = device.createBindGroupLayout({
         label: "material bind group layout",
         entries: [

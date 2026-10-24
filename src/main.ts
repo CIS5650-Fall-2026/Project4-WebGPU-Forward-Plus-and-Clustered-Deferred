@@ -53,4 +53,10 @@ const renderModes = { naive: 'naive', forwardPlus: 'forward+', clusteredDeferred
 let renderModeController = gui.add({ mode: renderModes.naive }, 'mode', renderModes);
 renderModeController.onChange(setRenderer);
 
+const debugViews = { lit: 0, 'lights per cluster': 1, albedo: 2, normal: 3, position: 4 };
+gui.add(stage, 'debugView', debugViews).name('debug view').onChange((view: string) => {
+    stage.debugView = Number(view);
+    setRenderer(renderModeController.getValue());
+});
+
 setRenderer(renderModeController.getValue());

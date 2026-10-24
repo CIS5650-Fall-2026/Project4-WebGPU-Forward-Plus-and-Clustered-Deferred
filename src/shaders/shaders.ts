@@ -30,6 +30,13 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
+    // 16x9 roughly matches aspect ratio, 511 because (511+1)*4 = 2048 bytes = size of cluster struct buffer in common.wgsl
+    clusterCountX: 16,
+    clusterCountY: 9,
+    clusterCountZ: 24,
+    maxLightsPerCluster: 511,
+    clusteringWorkgroupSize: 64,
+
     lightRadius: 2
 };
 
