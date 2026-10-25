@@ -18,6 +18,11 @@ export class NaiveRenderer extends renderer.Renderer {
             label: "scene uniforms bind group layout",
             entries: [
                 // TODO-1.2: add an entry for camera uniforms at binding 0, visible to only the vertex shader, and of type "uniform"
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: "uniform" }
+                },
                 { // lightSet
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
@@ -33,6 +38,10 @@ export class NaiveRenderer extends renderer.Renderer {
                 // TODO-1.2: add an entry for camera uniforms at binding 0
                 // you can access the camera using `this.camera`
                 // if you run into TypeScript errors, you're probably trying to upload the host buffer instead
+                {
+                    binding: 0,
+                    resource: { buffer: this.camera.uniformsBuffer }
+                },
                 {
                     binding: 1,
                     resource: { buffer: this.lights.lightSetStorageBuffer }
@@ -72,7 +81,7 @@ export class NaiveRenderer extends renderer.Renderer {
                 module: renderer.device.createShaderModule({
                     label: "naive frag shader",
                     code: shaders.naiveFragSrc,
-                }),
+                }), 
                 targets: [
                     {
                         format: renderer.canvasFormat,
@@ -88,6 +97,7 @@ export class NaiveRenderer extends renderer.Renderer {
 
         const renderPass = encoder.beginRenderPass({
             label: "naive render pass",
+            timestampWrites: renderer.gpuTimer?.passWrites("shading"),
             colorAttachments: [
                 {
                     view: canvasTextureView,
@@ -106,8 +116,9 @@ export class NaiveRenderer extends renderer.Renderer {
         renderPass.setPipeline(this.pipeline);
 
         // TODO-1.2: bind `this.sceneUniformsBindGroup` to index `shaders.constants.bindGroup_scene`
+        renderPass.setBindGroup(shaders.constants.bindGroup_scene, this.sceneUniformsBindGroup);
 
-        this.scene.iterate(node => {
+        this.scene.iterate(node => { 
             renderPass.setBindGroup(shaders.constants.bindGroup_model, node.modelBindGroup);
         }, material => {
             renderPass.setBindGroup(shaders.constants.bindGroup_material, material.materialBindGroup);
@@ -119,6 +130,8 @@ export class NaiveRenderer extends renderer.Renderer {
 
         renderPass.end();
 
+        renderer.gpuTimer?.resolve(encoder);
         renderer.device.queue.submit([encoder.finish()]);
+        renderer.gpuTimer?.afterSubmit();
     }
 }

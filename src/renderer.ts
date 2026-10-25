@@ -2,18 +2,23 @@ import { Scene } from './stage/scene';
 import { Lights } from './stage/lights';
 import { Camera } from './stage/camera';
 import { Stage } from './stage/stage';
+import { FrameTimer, GpuTimer, TIMING_LOG_INTERVAL_MS } from './timing';
 
 export var canvas: HTMLCanvasElement;
 export var canvasFormat: GPUTextureFormat;
 export var context: GPUCanvasContext;
 export var device: GPUDevice;
-export var canvasTextureView: GPUTextureView;
+//export var canvasTextureView: GPUTextureView;
 
 export var aspectRatio: number;
 export const fovYDegrees = 45;
 
 export var modelBindGroupLayout: GPUBindGroupLayout;
 export var materialBindGroupLayout: GPUBindGroupLayout;
+
+export var adapterInfo: GPUAdapterInfo;
+export const frameTimer = new FrameTimer();
+export var gpuTimer: GpuTimer | undefined;
 
 // CHECKITOUT: this function initializes WebGPU and also creates some bind group layouts shared by all the renderers
 export async function initWebGPU() {
@@ -35,13 +40,20 @@ export async function initWebGPU() {
         throw new Error("WebGPU not supported on this browser");
     }
 
-    const adapter = await navigator.gpu.requestAdapter();
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
     if (!adapter)
     {
         throw new Error("no appropriate GPUAdapter found");
     }
 
-    device = await adapter.requestDevice();
+    adapterInfo = adapter.info;
+    const canTime = adapter.features.has("timestamp-query");
+    device = await adapter.requestDevice({
+        requiredFeatures: canTime ? ["timestamp-query"] : []
+    });
+    if (canTime) {
+        gpuTimer = new GpuTimer(device);
+    }
 
     context = canvas.getContext("webgpu")!;
     canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -120,6 +132,31 @@ export abstract class Renderer {
         this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
     }
 
+    private static readonly logTimingEnabled = new URLSearchParams(window.location.search).has("timing");
+    private lastTimingLog = 0;
+
+    private logTiming(time: number) {
+        if (!Renderer.logTimingEnabled) {
+            return;
+        }
+        if (this.lastTimingLog === 0) {
+            this.lastTimingLog = time;
+            return;
+        }
+        if (time - this.lastTimingLog < TIMING_LOG_INTERVAL_MS) {
+            return;
+        }
+        this.lastTimingLog = time;
+
+        const frame = frameTimer.stats();
+        const passes = Object.entries(gpuTimer?.stats() ?? {})
+            .map(([name, s]) => `${name} ${s.mean.toFixed(3)}`)
+            .join(", ");
+        console.log(`${this.lights.numLights} lights | frame ${frame.mean.toFixed(3)} ms (${frame.count} frames) | GPU ms: ${passes}`);
+        frameTimer.reset();
+        gpuTimer?.reset();
+    }
+
     stop(): void {
         cancelAnimationFrame(this.frameRequestId);
     }
@@ -133,6 +170,8 @@ export abstract class Renderer {
         }
 
         let deltaTime = time - this.prevTime;
+        frameTimer.addFrame(deltaTime);
+        this.logTiming(time);
         this.camera.onFrame(deltaTime);
         this.lights.onFrame(time);
 
