@@ -27,16 +27,33 @@ export const constants = {
     bindGroup_scene: 0,
     bindGroup_model: 1,
     bindGroup_material: 2,
+    bindGroup_gbuff: 1,
 
     moveLightsWorkgroupSize: 128,
+    clusterLightsWorkgroupSize: 128,
+    clusterCountX: 32,
+    clusterCountY: 18,
+    clusterCountZ: 32,
+    maxLightsPerCluster: 1000,
 
     lightRadius: 2
 };
 
 // =================================
 
-function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+function evalShaderRaw(raw: string): string {
+    return raw.replace(
+        /\$\{(\w+)\}/g,
+        (_, name: string) => {
+            const value = constants[name as keyof typeof constants];
+
+            if (value === undefined) {
+                throw new Error(`Missing shader constant: ${name}`);
+            }
+
+            return String(value);
+        }
+    );
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);
