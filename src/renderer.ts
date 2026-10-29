@@ -111,6 +111,12 @@ export abstract class Renderer {
     private prevTime: number = 0;
     private frameRequestId: number;
 
+    private aveTime: number = 0;
+    private count: number = 0;
+    private warmupFrames: number = 30;
+    private sampleFrames: number = 200;
+    private printed: boolean = false;
+
     constructor(stage: Stage) {
         this.scene = stage.scene;
         this.lights = stage.lights;
@@ -128,21 +134,40 @@ export abstract class Renderer {
 
     // CHECKITOUT: this is the main rendering loop
     private onFrame(time: number) {
-        if (this.prevTime == 0) {
-            this.prevTime = time;
+    if (this.prevTime == 0) {
+        this.prevTime = time;
+    }
+
+    let deltaTime = time - this.prevTime;
+    this.camera.onFrame(deltaTime);
+    this.lights.onFrame(time);
+
+    this.stats.begin();
+    const timeBefore = performance.now();
+    this.draw();
+    this.stats.end();
+
+    // wait for the GPU to actually finish this frame's work
+    device.queue.onSubmittedWorkDone().then(() => {
+        if (this.printed) return;
+
+        const ms = performance.now() - timeBefore;
+
+        if (this.warmupFrames > 0) {
+            this.warmupFrames--;
+            return;
         }
 
-        let deltaTime = time - this.prevTime;
-        this.camera.onFrame(deltaTime);
-        this.lights.onFrame(time);
+        this.count++;
+        this.aveTime += (ms - this.aveTime) / this.count;
 
-        this.stats.begin();
+        if (this.count >= this.sampleFrames) {
+            console.log("Average ms per frame:", this.aveTime);
+            this.printed = true;
+        }
+    });
 
-        this.draw();
-
-        this.stats.end();
-
-        this.prevTime = time;
-        this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
-    }
+    this.prevTime = time;
+    this.frameRequestId = requestAnimationFrame((t) => this.onFrame(t));
+}
 }

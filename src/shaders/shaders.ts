@@ -30,13 +30,22 @@ export const constants = {
 
     moveLightsWorkgroupSize: 128,
 
-    lightRadius: 2
+    lightRadius: 2.,
+
+    maxLightsPerCluster: 100,
+    clusterDimX: 32,
+    clusterDimY: 18,
+    clusterDimZ: 24
 };
 
 // =================================
 
+// function evalShaderRaw(raw: string) {
+//     return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+// }
 function evalShaderRaw(raw: string) {
-    return eval('`' + raw.replaceAll('${', '${constants.') + '`');
+    const generator = new Function('constants', 'return `' + raw.replaceAll('${', '${constants.') + '`');   
+    return generator(constants);
 }
 
 const commonSrc: string = evalShaderRaw(commonRaw);

@@ -3,14 +3,36 @@ import { toRadians } from "../math_util";
 import { device, canvas, fovYDegrees, aspectRatio } from "../renderer";
 
 class CameraUniforms {
-    readonly buffer = new ArrayBuffer(16 * 4);
+    readonly buffer = new ArrayBuffer(52 * 4);
     private readonly floatView = new Float32Array(this.buffer);
 
     set viewProjMat(mat: Float32Array) {
         // TODO-1.1: set the first 16 elements of `this.floatView` to the input `mat`
+        this.floatView.set(mat, 0);
     }
 
     // TODO-2: add extra functions to set values needed for light clustering here
+    // subdivision scheme?? what to put here
+    // near and far clip,
+    // inv projec matrix, view mat, screenx and screeny 
+    set viewMat(mat: Float32Array) {
+        this.floatView.set(mat, 16);
+    }
+    set invProjMat(mat: Float32Array) {
+        this.floatView.set(mat, 32);
+    }
+    set nClip(val: number) {
+        this.floatView[48] = val;
+    }
+    set fClip(val: number) {
+        this.floatView[49] = val;
+    }
+    set screenX(val: number) {
+        this.floatView[50] = val;
+    }
+    set screenY(val: number) {
+        this.floatView[51] = val;
+    }
 }
 
 export class Camera {
@@ -18,12 +40,18 @@ export class Camera {
     uniformsBuffer: GPUBuffer;
 
     projMat: Mat4 = mat4.create();
-    cameraPos: Vec3 = vec3.create(-7, 2, 0);
-    cameraFront: Vec3 = vec3.create(0, 0, -1);
-    cameraUp: Vec3 = vec3.create(0, 1, 0);
-    cameraRight: Vec3 = vec3.create(1, 0, 0);
-    yaw: number = 0;
-    pitch: number = 0;
+    // cameraPos: Vec3 = vec3.create(-7, 20, 0);
+    // cameraFront: Vec3 = vec3.create(0, 0, -1);
+    // cameraUp: Vec3 = vec3.create(0, 1, 0);
+    // cameraRight: Vec3 = vec3.create(1, 0, 0);
+    cameraPos: Vec3 = vec3.create(-10.6, 5.3,1);
+    cameraUp: Vec3 = vec3.create(0.511, 0.855364263057, -0.0823);
+    cameraRight: Vec3 = vec3.create(0.1590196, 0,0.98727542);
+    cameraFront: Vec3 = vec3.create(0.844480, -0.5, -0.1360);
+    yaw: number = -9;
+    pitch: number = -10;
+    // yaw: number = 0;
+    // pitch: number = 0;
     moveSpeed: number = 0.004;
     sensitivity: number = 0.15;
 
@@ -38,6 +66,11 @@ export class Camera {
         // check `lights.ts` for examples of using `device.createBuffer()`
         //
         // note that you can add more variables (e.g. inverse proj matrix) to this buffer in later parts of the assignment
+        this.uniformsBuffer = device.createBuffer({
+            label: "uniforms",
+            size: this.uniforms.buffer.byteLength, 
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
 
         this.projMat = mat4.perspective(toRadians(fovYDegrees), aspectRatio, Camera.nearPlane, Camera.farPlane);
 
@@ -129,10 +162,19 @@ export class Camera {
         const viewMat = mat4.lookAt(this.cameraPos, lookPos, [0, 1, 0]);
         const viewProjMat = mat4.mul(this.projMat, viewMat);
         // TODO-1.1: set `this.uniforms.viewProjMat` to the newly calculated view proj mat
+        this.uniforms.viewProjMat = viewProjMat;
 
         // TODO-2: write to extra buffers needed for light clustering here
+        this.uniforms.fClip = Camera.farPlane;
+        this.uniforms.nClip = Camera.nearPlane;
+        this.uniforms.screenX = canvas.width;
+        this.uniforms.screenY = canvas.height;
+        this.uniforms.viewMat = viewMat;
+        this.uniforms.invProjMat = mat4.inverse(this.projMat);
+
 
         // TODO-1.1: upload `this.uniforms.buffer` (host side) to `this.uniformsBuffer` (device side)
         // check `lights.ts` for examples of using `device.queue.writeBuffer()`
+        device.queue.writeBuffer(this.uniformsBuffer, 0, this.uniforms.buffer);
     }
 }

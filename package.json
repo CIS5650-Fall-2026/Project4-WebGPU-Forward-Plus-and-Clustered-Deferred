@@ -16,8 +16,10 @@
     "vite": "^7.1.9"
   },
   "dependencies": {
-    "@loaders.gl/gltf": "^4.2.2",
-    "@loaders.gl/images": "^4.2.3",
+    "@loaders.gl/core": "^4.3.4",
+    "@loaders.gl/gltf": "^4.3.4",
+    "@loaders.gl/images": "^4.3.4",
+    "@loaders.gl/textures": "^4.3.4",
     "dat.gui": "^0.7.9",
     "stats.js": "^0.17.0",
     "wgpu-matrix": "^3.0.2"
